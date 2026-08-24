@@ -29,12 +29,20 @@ the codebase is portable to macOS and Linux with no platform-specific UI.
 
 ## Installation
 
-Grab the latest `project-m_*_x64-setup.exe` from the
-[Releases](https://github.com/herra-atlas/project-m/releases/latest) page.
-The installer is unsigned, so Windows SmartScreen will warn the first time —
-click **More info → Run anyway**.
+**Windows:** download the latest installer:
 
-The app self-updates on every subsequent launch.
+<p align="left">
+  <a href="https://github.com/herra-atlas/project-m/releases/latest">
+    <img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows%20%F0%9F%AA%9F-22C55E?style=for-the-badge&logo=windows&logoColor=white" />
+  </a>
+</p>
+
+Click the badge above to open the Releases page. Pick the newest
+release, then download the `Project.M_<version>_x64-setup.exe` asset.
+
+> The installer is **unsigned**, so Windows SmartScreen will warn the
+> first time. Click **More info → Run anyway**. After the first launch
+> the app self-updates silently.
 
 ## Development
 
