@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Macro</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --surface-2: #161616;
+      --surface-3: #1c1c1c;
+      --line: rgba(255,255,255,0.07);
+      --line-2: rgba(255,255,255,0.13);
+      --text: #f0f0f0;
+      --muted: #787878;
+      --muted-2: #a8a8a8;
+      --green: #22c55e;
+      --green-dim: rgba(34,197,94,0.12);
+      --green-border: rgba(34,197,94,0.28);
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --r: 10px;
+      --r-lg: 14px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* ── Top menu ── */
+    .topbar {
+      height: 50px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-right: 16px;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-icon {
+      width: 26px; height: 26px;
+      border-radius: 7px;
+      background: var(--green-dim);
+      border: 1px solid var(--green-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--green);
+      font-size: 13px;
+    }
+
+    .nav {
+      display: flex;
+      gap: 2px;
+      flex: 1;
+    }
+
+    .nav-btn {
+      border: 0;
+      background: transparent;
+      color: var(--muted-2);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background .13s, color .13s;
+    }
+
+    .nav-btn:hover { background: var(--surface-2); color: var(--text); }
+    .nav-btn.active { background: var(--surface-3); color: var(--text); font-weight: 600; }
+
+    .topbar-actions {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+      padding-left: 12px;
+    }
+
+    .action-btn {
+      border: 0;
+      background: var(--surface-3);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .13s, color .13s;
+      border: 1px solid var(--line);
+    }
+
+    .action-btn:hover { background: var(--surface-2); }
+    .action-btn.running { color: var(--red); }
+
+    /* ── Pages ── */
+    .pages {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page {
+      position: absolute;
+      inset: 0;
+      display: none;
+      overflow: auto;
+    }
+
+    .page.active { display: block; }
+
+    /* ── Home page ── */
+    .home-page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 40px;
+    }
+
+    .btn {
+      border: 1px solid var(--line-2);
+      background: var(--surface-3);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background .13s, border-color .13s;
+    }
+
+    .btn:hover { background: var(--surface-2); border-color: var(--line-2); }
+    .btn.primary { background: var(--green); border-color: var(--green); color: #071a0e; }
+    .btn.primary:hover { filter: brightness(1.08); }
+    .btn.primary.running { background: var(--red); border-color: var(--red); color: #fff; }
+
+    /* ── Scrollbar ── */
+    *::-webkit-scrollbar { width: 10px; height: 10px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 99px; border: 2px solid var(--bg); }
+    *::-webkit-scrollbar-thumb:hover { background: var(--surface-2); }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--line-2);
+      border-radius: 12px;
+      padding: 20px;
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+
+    .modal h3 { font-size: 15px; font-weight: 600; }
+
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .form-group label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 13px;
+      outline: none;
+      resize: vertical;
+    }
+
+    .form-group input:focus, .form-group textarea:focus { border-color: var(--line-2); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+    /* ── Helper panel ── */
+    .helper-panel {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--surface);
+      border: 1px solid var(--line-2);
+      border-radius: 10px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.5);
+      z-index: 9999;
+      min-width: 200px;
+      font-size: 12px;
+      display: none;
+    }
+    .helper-panel.active { display: block; }
+    .helper-header {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 600;
+      cursor: move;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+    .helper-close {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+    .helper-close:hover { color: var(--red); background: rgba(239,68,68,0.15); }
+    .helper-body {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .helper-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .helper-row span:first-child { color: var(--muted); font-weight: 500; }
+    .helper-row span:last-child { font-family: ui-monospace, monospace; color: var(--text); }
+    .helper-color-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .helper-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid var(--line-2);
+      flex-shrink: 0;
+    }
+
+    /* ── Context menu ── */
+    .context-menu {
+      display: none;
+      position: fixed;
+      background: var(--surface);
+      border: 1px solid var(--line-2);
+      border-radius: 8px;
+      padding: 4px;
+      min-width: 160px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      z-index: 9999;
+    }
+
+    .context-menu.active { display: block; }
+
+    .context-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 5px;
+      width: 100%;
+      text-align: left;
+      transition: background .12s;
+    }
+
+    .context-menu-item:hover { background: var(--surface-3); }
+    .context-menu-item.danger { color: var(--red); }
+    .context-menu-item.danger:hover { background: rgba(239,68,68,0.12); }
+    .context-menu-divider { height: 1px; background: var(--line); margin: 3px 0; }
+
+    /* ── Macros page ── */
+    .macros-page {
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .macros-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+
+    .macro-card {
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: background .13s, border-color .13s;
+      position: relative;
+    }
+
+    .macro-card:hover { background: var(--surface-3); border-color: var(--line-2); }
+    .macro-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .macro-card-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; padding-right: 44px; }
+    .macro-card-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+    .macro-card-ahk {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      line-height: 1;
+      user-select: none;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      transition: background .15s, border-color .15s, color .15s, opacity .15s;
+    }
+    .macro-card-ahk.found {
+      background: var(--green-dim);
+      border-color: var(--green-border);
+      color: var(--green);
+    }
+    .macro-card-ahk.missing {
+      background: rgba(239,68,68,0.12);
+      border-color: rgba(239,68,68,0.32);
+      color: var(--red);
+    }
+    .macro-card-ahk.checking { opacity: 0.55; }
+
+    .macro-card-add {
+      border: 1px dashed var(--line-2);
+      background: transparent;
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: background .13s, border-color .13s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted-2);
+      font-size: 22px;
+      min-height: 64px;
+    }
+
+    .macro-card-add:hover { background: var(--surface-2); border-color: var(--line-2); color: var(--text); }
+
+    /* ── Custom editor page ── */
+    .editor-page {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .editor-page.active { display: flex; }
+
+    .editor-toolbar {
+      height: 44px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .editor-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .palette {
+      width: 240px;
+      background: var(--surface);
+      border-right: 1px solid var(--line);
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .palette-group-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      padding-bottom: 4px;
+    }
+
+    .palette-item {
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 10px;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      transition: background .13s, border-color .13s;
+      width: 100%;
+    }
+
+    .palette-item:hover { background: var(--surface-3); border-color: var(--line-2); }
+    .palette-item strong { display: block; font-size: 12px; margin-bottom: 1px; }
+    .palette-item span { display: block; color: var(--muted); font-size: 11px; line-height: 1.3; }
+
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background-color: #0d0d0d;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+      cursor: grab;
+    }
+
+    .canvas-wrap:active { cursor: grabbing; }
+
+    .canvas-world {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 0;
+      transform-origin: 0 0;
+    }
+
+.node {
+      position: absolute;
+      width: 196px;
+      background: #181818;
+      border: 1px solid var(--line-2);
+      border-radius: 10px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .node:active { cursor: grabbing; }
+    .node.active {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 1px #f59e0b, 0 10px 28px rgba(0,0,0,0.35);
+    }
+
+    .node.selected {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 1px #3b82f6, 0 10px 28px rgba(0,0,0,0.35);
+    }
+
+    .node-header {
+      padding: 9px 11px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .node-title {
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .node-type {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .node-delete {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 15px;
+      line-height: 1;
+      padding: 4px 7px;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+
+    .node-delete:hover { color: var(--red); background: rgba(239,68,68,0.15); }
+
+    .node-body {
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .node-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .node-field label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .node-field input,
+    .node-field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      padding: 5px 8px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .node-field input:focus,
+    .node-field select:focus { border-color: var(--line-2); }
+
+    .input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-wrap input,
+    .input-wrap select {
+      width: 100%;
+      padding-right: 28px;
+    }
+
+
+
+    .node-port {
+      position: absolute;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: #555;
+      border: 2px solid #181818;
+      cursor: crosshair;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .node-port.in { left: -6px; }
+    .node-port.out { right: -6px; }
+    .node-port.connected { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,.5); }
+
+    .connections-svg {
+      position: absolute;
+      left: 0;
+      top: 0;
+      overflow: visible;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .connections-svg path {
+      fill: none;
+      stroke: rgba(34,197,94,0.7);
+      stroke-width: 2;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    .connections-svg path:hover { stroke: var(--green); stroke-width: 3; }
+
+  </style>
+</head>
+<body>
+
+  <!-- Top navigation -->
+  <header class="topbar">
+    <div class="brand">
+      <span>Macro</span>
+    </div>
+    <nav class="nav">
+      <button class="nav-btn active" data-page="home">Home</button>
+      <button class="nav-btn" data-page="macros">Macros</button>
+      <button class="nav-btn" data-page="custom-editor">Custom Editor</button>
+      <button class="nav-btn" data-page="settings">Settings</button>
+    </nav>
+    <div class="topbar-actions">
+      <button class="action-btn" id="run-btn">Start</button>
+      <button class="action-btn" id="stop-btn">Stop</button>
+    </div>
+  </header>
+
+  <!-- Pages -->
+  <div class="pages">
+
+    <!-- Home -->
+    <section class="page home-page active" data-page="home">
+    </section>
+
+    <!-- Macros -->
+    <section class="page macros-page" data-page="macros">
+      <div class="macros-grid" id="macros-grid"></div>
+    </section>
+
+    <!-- Custom Editor -->
+    <section class="page editor-page" data-page="custom-editor">
+      <div class="editor-toolbar">
+        <button class="action-btn" id="save-btn">Save</button>
+        <button class="action-btn" id="export-btn">Export</button>
+        <button class="action-btn" id="import-btn">Import</button>
+      </div>
+      <div class="editor-body">
+        <div class="palette" id="palette">
+          <div>
+            <div class="palette-group-label">Start</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+              <button class="palette-item" data-node-type="manual-start">
+                <strong>Starting point</strong>
+                <span>Macro starts here when you run it.</span>
+              </button>
+              <button class="palette-item" data-node-type="hotkey-trigger">
+                <strong>Hotkey trigger</strong>
+                <span>Waits for a key press.</span>
+              </button>
+              <button class="palette-item" data-node-type="timer-trigger">
+                <strong>Timer trigger</strong>
+                <span>Delay or clock time.</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="palette-group-label">If</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+              <button class="palette-item" data-node-type="color-trigger">
+                <strong>While / If color</strong>
+                <span>Polls a pixel color.</span>
+              </button>
+              <button class="palette-item" data-node-type="pixel-scan">
+                <strong>Pixel scan</strong>
+                <span>Scan a region for a color with tolerance.</span>
+              </button>
+              <button class="palette-item" data-node-type="logic-gate">
+                <strong>AND / OR</strong>
+                <span>Combines conditions.</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="palette-group-label">Keyboard</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+              <button class="palette-item" data-node-type="key-press">
+                <strong>Press key</strong>
+                <span>Send one key press.</span>
+              </button>
+              <button class="palette-item" data-node-type="key-hold">
+                <strong>Hold key</strong>
+                <span>Hold for duration.</span>
+              </button>
+              <button class="palette-item" data-node-type="ipc-command">
+                <strong>IPC command</strong>
+                <span>Send key, hold, release, or type text.</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="palette-group-label">Mouse</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+              <button class="palette-item" data-node-type="mouse-move">
+                <strong>Move mouse</strong>
+                <span>Move to coordinates.</span>
+              </button>
+              <button class="palette-item" data-node-type="mouse-click">
+                <strong>Click</strong>
+                <span>Left / right / middle click.</span>
+              </button>
+              <button class="palette-item" data-node-type="mouse-drag">
+                <strong>Drag</strong>
+                <span>Press, move, release.</span>
+              </button>
+              <button class="palette-item" data-node-type="mouse-hold-sweep">
+                <strong>Move + hold</strong>
+                <span>Sweep while holding button.</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="palette-group-label">Tools</div>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
+              <button class="palette-item" data-node-type="loop">
+                <strong>Loop</strong>
+                <span>Repeat until stop condition.</span>
+              </button>
+              <button class="palette-item" data-node-type="break">
+                <strong>Break</strong>
+                <span>Stop nearest loop.</span>
+              </button>
+              <button class="palette-item" data-node-type="variable">
+                <strong>Variable</strong>
+                <span>Set / increment / check.</span>
+              </button>
+              <button class="palette-item" data-node-type="pause">
+                <strong>Pause</strong>
+                <span>Wait until resumed.</span>
+              </button>
+              <button class="palette-item" data-node-type="delay">
+                <strong>Delay</strong>
+                <span>Wait milliseconds.</span>
+              </button>
+              <button class="palette-item" data-node-type="log">
+                <strong>Log</strong>
+                <span>Write a message.</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="canvas-wrap" id="canvas">
+          <div class="canvas-world" id="canvasWorld">
+            <svg class="connections-svg" id="connections"></svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section class="page settings-page" data-page="settings">
+      <div style="padding:24px;max-width:860px;">
+        <h2 style="font-size:18px;margin-bottom:14px;">Settings</h2>
+        <div class="settings-card">
+          <h3>General</h3>
+          <div class="setting-row">
+            <span>Theme</span>
+            <strong>Dark</strong>
+          </div>
+          <div class="setting-row">
+            <button class="action-btn" id="helper-btn">Helper</button>
+            <strong style="font-weight:400;color:var(--muted);font-size:12px;">Open mouse / color helper</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Save Modal -->
+    <div class="modal-overlay" id="save-modal">
+      <div class="modal">
+        <h3>Save Macro</h3>
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" id="macro-title" placeholder="My Macro" />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="macro-desc" rows="3" placeholder="What does this macro do?"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" id="cancel-save-btn">Cancel</button>
+          <button class="btn primary" id="confirm-save-btn">Save</button>
+        </div>
+      </div>
+    </div>
+    <!-- View Macro Modal -->
+    <div class="modal-overlay" id="view-modal">
+      <div class="modal" style="width:400px;gap:14px;">
+        <h3 id="view-modal-title">Macro Details</h3>
+        <div id="view-modal-body" style="display:flex;flex-direction:column;gap:10px;max-height:520px;overflow-y:auto;"></div>
+        <div class="modal-actions">
+          <button class="btn" id="close-view-btn">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu -->
+  <div id="context-menu" class="context-menu">
+    <button class="context-menu-item" id="ctx-view">View</button>
+    <button class="context-menu-item" id="ctx-edit">Edit</button>
+    <button class="context-menu-item" id="ctx-duplicate">Duplicate</button>
+    <div class="context-menu-divider"></div>
+    <button class="context-menu-item" id="ctx-download">Download</button>
+    <button class="context-menu-item danger" id="ctx-delete">Delete</button>
+  </div>
+
+  <!-- Helper Panel -->
+  <div id="helper-panel" class="helper-panel">
+    <div class="helper-header">
+      <span>Helper</span>
+      <button class="helper-close" id="helper-close">&times;</button>
+    </div>
+    <div class="helper-body">
+      <div class="helper-row"><span>X</span><span id="helper-x">0</span></div>
+      <div class="helper-row"><span>Y</span><span id="helper-y">0</span></div>
+      <div class="helper-row">
+        <span>Color</span>
+        <span class="helper-color-wrap">
+          <span id="helper-swatch" class="helper-swatch" style="background:#FFFFFF;"></span>
+          <span id="helper-color">#FFFFFF</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { invoke } from '@tauri-apps/api/core';
+    import { listen } from '@tauri-apps/api/event';
+    import { getCurrentWindow } from '@tauri-apps/api/window';
+
+    let activeNodeId = null;
+    let selectedNodeId = null;
+    let stateSaveTimer = null;
+    let helperInterval = null;
+    let helperOpen = false;
+    let ahkListening = false;
+    let ahkPolling = false;
+    let ahkPollTimer = null;
+
+    function scheduleStateSave() {
+      if (stateSaveTimer) clearTimeout(stateSaveTimer);
+      stateSaveTimer = setTimeout(saveAppState, 500);
+    }
+
+    async function saveAppState() {
+      try {
+        const win = getCurrentWindow();
+        const size = await win.innerSize();
+        const position = await win.innerPosition();
+        const state = JSON.stringify({
+          window: { width: size.width, height: size.height, x: position.x, y: position.y },
+          macros,
+          editor: { nodes: nodes.map(n => ({ id: n.id, type: n.type, x: n.x, y: n.y, fields: buildNodeFields(n) })), connections: connections.map(c => ({ from: c.from, to: c.to })) }
+        });
+        localStorage.setItem('macro_state', state);
+        await invoke('save_app_state', { payload: state });
+      } catch (err) {
+        console.error('Failed to save app state:', err);
+        alert('Save failed: ' + err);
+      }
+    }
+
+    function buildNodeFields(node) {
+      const fields = {};
+      node.el.querySelectorAll('input, select').forEach(input => {
+        const key = input.dataset.key;
+        if (!key) return;
+        if (input.type === 'number') {
+          fields[key] = parseFloat(input.value) || 0;
+        } else {
+          fields[key] = input.value;
+        }
+      });
+      return fields;
+    }
+
+    async function loadAppState() {
+      try {
+        let raw = await invoke('load_app_state');
+        if ((!raw || raw === '{}') && typeof localStorage !== 'undefined') {
+          raw = localStorage.getItem('macro_state');
+        }
+        const state = JSON.parse((raw || '{}'));
+        if (state.window) {
+          const win = getCurrentWindow();
+          win.setSize(state.window.width, state.window.height).catch(() => {});
+          win.setPosition(state.window.x, state.window.y).catch(() => {});
+        }
+        if (state.macros && Array.isArray(state.macros)) {
+          macros.length = 0;
+          state.macros.forEach(m => macros.push(m));
+        }
+        if (state.editor && Array.isArray(state.editor.nodes)) {
+          nodes.forEach(n => n.el.remove());
+          connections.forEach(c => c.el.remove());
+          nodes = [];
+          connections = [];
+          state.editor.nodes.forEach(n => createNode(n.type, n.x, n.y, n.id, n.fields));
+          (state.editor.connections || []).forEach(c => addConnection(c.from, c.to));
+          requestAnimationFrame(() => requestAnimationFrame(renderConnections));
+        }
+      } catch (err) {
+        console.error('Failed to load app state:', err);
+        alert('Load failed: ' + err);
+      }
+    }
+
+    // ── Helper panel ──
+    const helperPanel = document.getElementById('helper-panel');
+    const helperX = document.getElementById('helper-x');
+    const helperY = document.getElementById('helper-y');
+    const helperColor = document.getElementById('helper-color');
+    const helperSwatch = document.getElementById('helper-swatch');
+
+    function toggleHelper() {
+      helperOpen = !helperOpen;
+      if (helperOpen) {
+        helperPanel.classList.add('active');
+        updateHelper();
+        helperInterval = setInterval(updateHelper, 50);
+      } else {
+        helperPanel.classList.remove('active');
+        if (helperInterval) clearInterval(helperInterval);
+        helperInterval = null;
+      }
+    }
+
+    async function updateHelper() {
+      try {
+        const info = await invoke('get_mouse_info');
+        const [x, y, color] = info;
+        helperX.textContent = x;
+        helperY.textContent = y;
+        helperColor.textContent = color;
+        helperSwatch.style.background = color;
+      } catch (err) {
+        console.error('Failed to get mouse info:', err);
+      }
+    }
+
+    document.getElementById('helper-btn')?.addEventListener('click', toggleHelper);
+    document.getElementById('helper-close')?.addEventListener('click', toggleHelper);
+
+    (function initHelperDrag() {
+      const panel = helperPanel;
+      const header = panel.querySelector('.helper-header');
+      let startX, startY, initialLeft, initialTop;
+      header.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.helper-close')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = panel.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        initialLeft = rect.left;
+        initialTop = rect.top;
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+        panel.style.left = initialLeft + 'px';
+        panel.style.top = initialTop + 'px';
+        header.setPointerCapture(e.pointerId);
+      });
+      header.addEventListener('pointermove', (e) => {
+        if (initialLeft === undefined) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        panel.style.left = (initialLeft + dx) + 'px';
+        panel.style.top = (initialTop + dy) + 'px';
+      });
+      header.addEventListener('pointerup', (e) => {
+        initialLeft = undefined;
+        initialTop = undefined;
+        header.releasePointerCapture(e.pointerId);
+      });
+    })();
+
+    function selectNode(id) {
+      if (selectedNodeId) {
+        const prev = document.querySelector(`.node[data-id="${selectedNodeId}"]`);
+        if (prev) prev.classList.remove('selected');
+      }
+      selectedNodeId = id;
+      if (id) {
+        const el = document.querySelector(`.node[data-id="${id}"]`);
+        if (el) el.classList.add('selected');
+      }
+    }
+
+    function highlightNode(id) {
+      if (activeNodeId) {
+        const prev = document.querySelector(`.node[data-id="${activeNodeId}"]`);
+        if (prev) prev.classList.remove('active');
+      }
+      activeNodeId = id;
+      if (id) {
+        const el = document.querySelector(`.node[data-id="${id}"]`);
+        if (el) {
+          el.classList.add('active');
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }
+
+
+
+    listen('node-executing', (event) => {
+      highlightNode(event.payload.nodeId);
+    });
+    listen('macro-finished', () => {
+      highlightNode(null);
+    });
+
+    loadAppState();
+
+    // ── AHK IPC status polling ──
+    function macroUsesIpc(macro) {
+      return (macro.nodes || []).some(n => n.type === 'ipc-command');
+    }
+
+    async function refreshAhkStatus() {
+      if (ahkPolling) return;
+      ahkPolling = true;
+      try {
+        ahkListening = await invoke('check_ahk');
+      } catch (err) {
+        ahkListening = false;
+      }
+      ahkPolling = false;
+      document.querySelectorAll('.macro-card-ahk').forEach(el => {
+        el.classList.toggle('found', ahkListening);
+        el.classList.toggle('missing', !ahkListening);
+        el.classList.remove('checking');
+        el.title = ahkListening
+          ? 'AHK IPC listener (AHK_IPC) is running'
+          : 'AHK IPC listener not found — start the .ahk script';
+      });
+    }
+
+    function startAhkPolling() {
+      if (ahkPollTimer) return;
+      refreshAhkStatus();
+      ahkPollTimer = setInterval(refreshAhkStatus, 1500);
+    }
+
+    startAhkPolling();
+
+    // ── Page routing ──
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const pages = document.querySelectorAll('.page');
+
+    function showPage(name) {
+      pages.forEach(p => p.classList.toggle('active', p.dataset.page === name));
+      navButtons.forEach(b => b.classList.toggle('active', b.dataset.page === name));
+    }
+
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => showPage(btn.dataset.page));
+    });
+
+    // ── Macros list ──
+    let macros = [];
+    let selectedMacroIdx = -1;
+    const macrosGrid = document.getElementById('macros-grid');
+
+    function renderMacros() {
+      macrosGrid.innerHTML = '';
+      macros.forEach((m, idx) => {
+        const card = document.createElement('div');
+        card.className = 'macro-card' + (idx === selectedMacroIdx ? ' selected' : '');
+        let badgeHtml = '';
+        if (macroUsesIpc(m)) {
+          const state = ahkListening ? 'found' : 'missing';
+          const tip = ahkListening
+            ? 'AHK IPC listener (AHK_IPC) is running'
+            : 'AHK IPC listener not found — start the .ahk script';
+          badgeHtml = `<div class="macro-card-ahk ${state}" title="${escapeHtml(tip)}">.ahk</div>`;
+        }
+        card.innerHTML = `<div class="macro-card-title">${escapeHtml(m.title)}</div>${badgeHtml}<div class="macro-card-desc">${escapeHtml(m.description || '')}</div>`;
+        card.addEventListener('click', () => {
+          selectedMacroIdx = idx;
+          renderMacros();
+        });
+        card.addEventListener('dblclick', () => loadMacro(idx));
+        card.addEventListener('contextmenu', (e) => { showContextMenu(e, idx); e.stopPropagation(); });
+        macrosGrid.appendChild(card);
+      });
+      const addBtn = document.createElement('div');
+      addBtn.className = 'macro-card-add';
+      addBtn.textContent = '+';
+      addBtn.addEventListener('click', newMacro);
+      macrosGrid.appendChild(addBtn);
+      scheduleStateSave();
+    }
+
+    function newMacro() {
+      nodes.forEach(n => n.el.remove());
+      connections.forEach(c => c.el.remove());
+      nodes = [];
+      connections = [];
+      selectedMacroIdx = -1;
+      renderMacros();
+      showPage('custom-editor');
+      scheduleStateSave();
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function loadMacro(idx) {
+      const m = macros[idx];
+      if (!m) return;
+      nodes.forEach(n => n.el.remove());
+      connections.forEach(c => c.el.remove());
+      nodes = [];
+      connections = [];
+      const nodeList = m.nodes || [];
+      const SPACING_X = 240;
+      const START_Y = 80;
+      nodeList.forEach((n, i) => createNode(n.type, 40 + i * SPACING_X, START_Y, n.id, n.fields));
+      (m.connections || []).forEach(c => addConnection(c.from, c.to));
+      showPage('custom-editor');
+      requestAnimationFrame(() => requestAnimationFrame(renderConnections));
+      scheduleStateSave();
+    }
+
+    // ── Context menu ──
+    let contextMenuIdx = -1;
+    const contextMenu = document.getElementById('context-menu');
+    const viewModal = document.getElementById('view-modal');
+
+    function showContextMenu(e, idx) {
+      e.preventDefault();
+      contextMenuIdx = idx;
+      contextMenu.style.left = e.clientX + 'px';
+      contextMenu.style.top = e.clientY + 'px';
+      contextMenu.classList.add('active');
+    }
+
+    function hideContextMenu() {
+      contextMenu.classList.remove('active');
+      contextMenuIdx = -1;
+    }
+
+    function getMacroVariables(macro) {
+      const variables = new Set();
+      (macro.nodes || []).forEach(n => {
+        Object.keys(n.fields || {}).forEach(k => variables.add(k));
+      });
+      return Array.from(variables).sort();
+    }
+
+    function showViewModal(idx) {
+      if (idx === undefined) idx = contextMenuIdx;
+      if (idx < 0 || idx >= macros.length) return;
+      const m = macros[idx];
+      if (!m) return;
+      document.getElementById('view-modal-title').textContent = m.title || 'Untitled Macro';
+      const body = document.getElementById('view-modal-body');
+      const vars = getMacroVariables(m);
+      body.innerHTML = '';
+      if (m.description) {
+        const desc = document.createElement('div');
+        desc.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.4;';
+        desc.textContent = m.description;
+        body.appendChild(desc);
+        const sep = document.createElement('div');
+        sep.style.cssText = 'height:1px;background:var(--line);margin:4px 0;';
+        body.appendChild(sep);
+      }
+      const infoRow = document.createElement('div');
+      infoRow.style.cssText = 'display:flex;gap:10px;font-size:11px;color:var(--muted);';
+      infoRow.innerHTML = `<span>Nodes: ${(m.nodes || []).length}</span><span>Connections: ${(m.connections || []).length}</span><span>Variables: ${vars.length}</span>`;
+      body.appendChild(infoRow);
+      if (vars.length > 0) {
+        const varLabel = document.createElement('div');
+        varLabel.style.cssText = 'font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-top:6px;';
+        varLabel.textContent = 'Variables';
+        body.appendChild(varLabel);
+        vars.forEach(v => {
+          const found = (m.nodes || []).find(n => n.fields && n.fields[v] !== undefined);
+          const val = found ? (typeof found.fields[v] === 'number' ? found.fields[v] : String(found.fields[v])) : '-';
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--line);';
+          row.innerHTML = `<span style="font-family:ui-monospace,monospace;color:var(--text)">${escapeHtml(v)}</span><span style="color:var(--muted)">${escapeHtml(val)}</span>`;
+          body.appendChild(row);
+        });
+      }
+      viewModal.classList.add('active');
+    }
+
+    document.getElementById('ctx-view')?.addEventListener('click', () => {
+      const idx = contextMenuIdx;
+      if (idx < 0 || idx >= macros.length) { hideContextMenu(); return; }
+      showViewModal(idx);
+      hideContextMenu();
+    });
+    document.getElementById('ctx-edit')?.addEventListener('click', () => {
+      const idx = contextMenuIdx;
+      if (idx >= 0) loadMacro(idx);
+      hideContextMenu();
+    });
+    document.getElementById('ctx-duplicate')?.addEventListener('click', () => {
+      const idx = contextMenuIdx;
+      if (idx < 0 || idx >= macros.length) { hideContextMenu(); return; }
+      const m = macros[idx];
+      if (!m) { hideContextMenu(); return; }
+      const copy = JSON.parse(JSON.stringify(m));
+      copy.title = m.title + ' (Copy)';
+      macros.push(copy);
+      selectedMacroIdx = macros.length - 1;
+      renderMacros();
+      scheduleStateSave();
+      hideContextMenu();
+    });
+    document.getElementById('ctx-delete')?.addEventListener('click', () => {
+      const idx = contextMenuIdx;
+      if (idx < 0 || idx >= macros.length) { hideContextMenu(); return; }
+      const m = macros[idx];
+      if (!confirm('Delete macro "' + (m.title || 'Untitled Macro') + '"?')) { hideContextMenu(); return; }
+      macros.splice(idx, 1);
+      if (selectedMacroIdx === idx) selectedMacroIdx = -1;
+      else if (selectedMacroIdx > idx) selectedMacroIdx--;
+      renderMacros();
+      scheduleStateSave();
+      hideContextMenu();
+    });
+    document.getElementById('ctx-download')?.addEventListener('click', () => {
+      const idx = contextMenuIdx;
+      if (idx < 0 || idx >= macros.length) { hideContextMenu(); return; }
+      const m = macros[idx];
+      if (!m) { hideContextMenu(); return; }
+      const data = {
+        exportedAt: new Date().toISOString(),
+        title: m.title,
+        description: m.description,
+        nodes: m.nodes || [],
+        connections: m.connections || []
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = ((m.title || 'macro').replace(/[^a-z0-9_-]/gi, '_') || 'macro') + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      hideContextMenu();
+    });
+    document.getElementById('close-view-btn')?.addEventListener('click', () => {
+      viewModal.classList.remove('active');
+    });
+    viewModal?.addEventListener('click', (e) => {
+      if (e.target === viewModal) viewModal.classList.remove('active');
+    });
+
+    // ── Save modal ──
+    const saveModal = document.getElementById('save-modal');
+    const macroTitleInput = document.getElementById('macro-title');
+    const macroDescInput = document.getElementById('macro-desc');
+
+    document.getElementById('save-btn')?.addEventListener('click', () => {
+      if (nodes.length === 0) return;
+      macroTitleInput.value = '';
+      macroDescInput.value = '';
+      saveModal.classList.add('active');
+      macroTitleInput.focus();
+    });
+
+    document.getElementById('cancel-save-btn')?.addEventListener('click', () => {
+      saveModal.classList.remove('active');
+    });
+
+    document.getElementById('confirm-save-btn')?.addEventListener('click', () => {
+      const title = macroTitleInput.value.trim();
+      if (!title) return;
+      const description = macroDescInput.value.trim();
+      const data = buildMacroData();
+      if (!data) return;
+      macros.push({ title, description, nodes: data.nodes, connections: data.connections });
+      renderMacros();
+      saveModal.classList.remove('active');
+      scheduleStateSave();
+    });
+
+    saveModal.addEventListener('click', (e) => {
+      if (e.target === saveModal) saveModal.classList.remove('active');
+    });
+
+    document.getElementById('run-btn')?.addEventListener('click', async () => {
+      const data = buildMacroData();
+      if (!data && selectedMacroIdx >= 0 && selectedMacroIdx < macros.length) {
+        const m = macros[selectedMacroIdx];
+        const nodeList = m.nodes || [];
+        const connectionsList = m.connections || [];
+        if (nodeList.length > 0) {
+          const fieldsFromSaved = (n) => n.fields || {};
+          const runData = {
+            nodes: nodeList.map(n => ({ id: n.id, type: n.type, x: n.x, y: n.y, fields: fieldsFromSaved(n) })),
+            connections: connectionsList.map(c => ({ from: c.from, to: c.to }))
+          };
+          try {
+            await invoke('run_macro', { data: runData });
+            document.getElementById('run-btn')?.classList.add('running');
+          } catch (e) {
+            console.error('Failed to run macro:', e);
+            alert('Failed to run macro: ' + e);
+          }
+          return;
+        }
+      }
+      if (!data) {
+        console.log('No nodes in editor to run');
+        alert('No macro loaded in editor. Double-click a macro card to load it, or create one.');
+        return;
+      }
+      try {
+        await invoke('run_macro', { data });
+        document.getElementById('run-btn')?.classList.add('running');
+      } catch (e) {
+        console.error('Failed to run macro:', e);
+        alert('Failed to run macro: ' + e);
+      }
+    });
+    document.getElementById('stop-btn')?.addEventListener('click', async () => {
+      try {
+        await invoke('stop_macro');
+      } catch (e) {
+        console.error('Failed to stop macro:', e);
+      }
+      document.getElementById('run-btn')?.classList.remove('running');
+    });
+
+    function buildMacroData() {
+      if (nodes.length === 0) return null;
+      return {
+        nodes: nodes.map(n => {
+          const fields = {};
+          n.el.querySelectorAll('input, select').forEach(input => {
+            const key = input.dataset.key;
+            if (!key) return;
+            if (input.type === 'number') {
+              fields[key] = parseFloat(input.value) || 0;
+            } else {
+              fields[key] = input.value;
+            }
+          });
+          return { id: n.id, type: n.type, x: n.x, y: n.y, fields };
+        }),
+        connections: connections.map(c => ({ from: c.from, to: c.to }))
+      };
+    }
+
+    // ── Node editor ──
+    const canvas = document.getElementById('canvas');
+    const canvasWorld = document.getElementById('canvasWorld');
+    const connectionsSvg = document.getElementById('connections');
+    const palette = document.getElementById('palette');
+
+    let nodes = [];
+    let connections = [];
+    let nextId = 1;
+    let panX = 0, panY = 0, zoom = 1;
+    const MIN_ZOOM = 0.25;
+    const MAX_ZOOM = 3;
+
+    function updateWorldTransform() {
+      canvasWorld.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+      const size = 24 * zoom;
+      canvas.style.backgroundSize = `${size}px ${size}px`;
+      canvas.style.backgroundPosition = `${panX % size}px ${panY % size}px`;
+    }
+
+    function screenToWorld(sx, sy) {
+      const rect = canvas.getBoundingClientRect();
+      const cx = sx - rect.left;
+      const cy = sy - rect.top;
+      return {
+        x: (cx - panX) / zoom,
+        y: (cy - panY) / zoom
+      };
+    }
+
+    const NODE_META = {
+      'manual-start':       { label: 'Start',           color: '#22c55e', fields: [] },
+      'hotkey-trigger':     { label: 'Hotkey trigger',   color: '#3b82f6', fields: [
+        { key: 'key', label: 'Key', type: 'text', default: '6' }
+      ]},
+      'timer-trigger':      { label: 'Timer trigger',    color: '#8b5cf6', fields: [
+        { key: 'mode', label: 'Mode', type: 'select', options: ['interval','clock'], default: 'interval' },
+        { key: 'intervalMs', label: 'Interval (ms)', type: 'number', default: '500' },
+        { key: 'clockTime', label: 'Clock time', type: 'text', default: '22:00' }
+      ]},
+      'color-trigger':      { label: 'While / If color',    color: '#ec4899', fields: [
+        { key: 'mode', label: 'Mode', type: 'select', options: ['while','if'], default: 'while' },
+        { key: 'pollMs', label: 'Poll (ms)', type: 'number', default: '50' },
+        { key: 'x', label: 'X', type: 'number', default: '0' },
+        { key: 'y', label: 'Y', type: 'number', default: '0' },
+        { key: 'width', label: 'Width', type: 'number', default: '1' },
+        { key: 'height', label: 'Height', type: 'number', default: '1' },
+        { key: 'color', label: 'Color', type: 'text', default: '#FFFFFF' }
+      ]},
+      'pixel-scan':         { label: 'Pixel scan',          color: '#ec4899', fields: [
+        { key: 'x', label: 'X', type: 'number', default: '0' },
+        { key: 'y', label: 'Y', type: 'number', default: '0' },
+        { key: 'width', label: 'Width', type: 'number', default: '100' },
+        { key: 'height', label: 'Height', type: 'number', default: '100' },
+        { key: 'color', label: 'Color', type: 'text', default: '#FF0000' },
+        { key: 'rTol', label: 'R tolerance', type: 'number', default: '10' },
+        { key: 'gTol', label: 'G tolerance', type: 'number', default: '10' },
+        { key: 'bTol', label: 'B tolerance', type: 'number', default: '10' },
+        { key: 'targetCount', label: 'Min hits', type: 'number', default: '1' },
+        { key: 'resultVar', label: 'Result var', type: 'text', default: '' },
+        { key: 'firstMatchXVar', label: 'First match X var', type: 'text', default: '' },
+        { key: 'firstMatchYVar', label: 'First match Y var', type: 'text', default: '' },
+        { key: 'centerOnXVar', label: 'Center on X var', type: 'text', default: '' },
+        { key: 'centerOnYVar', label: 'Center on Y var', type: 'text', default: '' }
+      ]},
+      'logic-gate':         { label: 'AND / OR',         color: '#f59e0b', fields: [
+        { key: 'mode', label: 'Mode', type: 'select', options: ['and','or'], default: 'and' }
+      ]},
+      'key-press':          { label: 'Press key',        color: '#10b981', fields: [
+        { key: 'key', label: 'Key', type: 'text', default: 'E' }
+      ]},
+      'key-hold':           { label: 'Hold key',         color: '#059669', fields: [
+        { key: 'key', label: 'Key', type: 'text', default: 'E' },
+        { key: 'durationMs', label: 'Duration (ms)', type: 'number', default: '500' }
+      ]},
+      'ipc-command':        { label: 'IPC command',      color: '#6366f1', fields: [
+        { key: 'command', label: 'Command', type: 'text', default: 'E' }
+      ]},
+      'mouse-move':         { label: 'Move mouse',       color: '#06b6d4', fields: [
+        { key: 'x', label: 'X', type: 'number', default: '0' },
+        { key: 'y', label: 'Y', type: 'number', default: '0' }
+      ]},
+      'mouse-click':        { label: 'Click',            color: '#14b8a6', fields: [
+        { key: 'button', label: 'Button', type: 'select', options: ['left','right','middle'], default: 'left' },
+        { key: 'count', label: 'Count', type: 'number', default: '1' },
+        { key: 'delayMs', label: 'Delay (ms)', type: 'number', default: '0' }
+      ]},
+      'mouse-drag':         { label: 'Drag',             color: '#0d9488', fields: [
+        { key: 'fromX', label: 'From X', type: 'number', default: '0' },
+        { key: 'fromY', label: 'From Y', type: 'number', default: '0' },
+        { key: 'toX', label: 'To X', type: 'number', default: '100' },
+        { key: 'toY', label: 'To Y', type: 'number', default: '100' },
+        { key: 'button', label: 'Button', type: 'select', options: ['left','right','middle'], default: 'left' },
+        { key: 'durationMs', label: 'Duration (ms)', type: 'number', default: '300' }
+      ]},
+      'mouse-hold-sweep':   { label: 'Move + hold',      color: '#0f766e', fields: [
+        { key: 'fromX', label: 'From X', type: 'number', default: '0' },
+        { key: 'fromY', label: 'From Y', type: 'number', default: '0' },
+        { key: 'toX', label: 'To X', type: 'number', default: '100' },
+        { key: 'toY', label: 'To Y', type: 'number', default: '100' },
+        { key: 'button', label: 'Button', type: 'select', options: ['left','right','middle'], default: 'left' },
+        { key: 'durationMs', label: 'Duration (ms)', type: 'number', default: '0' },
+        { key: 'pauseMs', label: 'Pause (ms)', type: 'number', default: '0' }
+      ]},
+      'loop':               { label: 'Loop',             color: '#f97316', fields: [
+        { key: 'intervalMs', label: 'Interval (ms)', type: 'number', default: '100' },
+        { key: 'loopCount', label: 'Loop count', type: 'number', default: '1' }
+      ]},
+      'break':              { label: 'Break',            color: '#ef4444', fields: [] },
+      'variable':           { label: 'Variable',         color: '#84cc16', fields: [
+        { key: 'name', label: 'Name', type: 'text', default: 'counter' },
+        { key: 'mode', label: 'Mode', type: 'select', options: ['set','increment','check'], default: 'set' },
+        { key: 'value', label: 'Value', type: 'number', default: '0' }
+      ]},
+      'pause':              { label: 'Pause',            color: '#a855f7', fields: [] },
+      'delay':              { label: 'Delay',            color: '#64748b', fields: [
+        { key: 'ms', label: 'Delay (ms)', type: 'number', default: '500' }
+      ]},
+      'log':                { label: 'Log',              color: '#475569', fields: [
+        { key: 'message', label: 'Message', type: 'text', default: 'Custom log' }
+      ]}
+    };
+
+    function createNode(type, x, y, id, fields) {
+      const meta = NODE_META[type] || { label: type, color: '#555', fields: [] };
+      const nodeId = id || ('node-' + (nextId++));
+      const node = document.createElement('div');
+      node.className = 'node';
+      node.dataset.id = nodeId;
+      node.style.left = x + 'px';
+      node.style.top = y + 'px';
+
+      let fieldsHtml = '';
+      meta.fields.forEach(f => {
+        if (f.type === 'select') {
+          const opts = (f.options || []).map(o => `<option value="${o}">${o}</option>`).join('');
+          fieldsHtml += `<div class="node-field"><label>${f.label}</label><select data-key="${f.key}">${opts}</select></div>`;
+        } else {
+          fieldsHtml += `<div class="node-field"><label>${f.label}</label><input type="${f.type}" data-key="${f.key}" value="${f.default}" /></div>`;
+        }
+      });
+
+      node.innerHTML = `
+        <div class="node-port in" data-port="in"></div>
+        <div class="node-port out" data-port="out"></div>
+        <div class="node-header">
+          <div>
+            <div class="node-title">${meta.label}</div>
+            <div class="node-type">${type}</div>
+          </div>
+          <button class="node-delete" title="Delete">&times;</button>
+        </div>
+        <div class="node-body">${fieldsHtml}</div>
+      `;
+
+      if (fields) {
+        Object.entries(fields).forEach(([key, value]) => {
+          const input = node.querySelector(`[data-key="${key}"]`);
+          if (input) {
+            input.value = value;
+          }
+        });
+      }
+
+      node.querySelector('.node-delete').addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        deleteNode(nodeId);
+      });
+
+      node.querySelector('.node-header').addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.node-delete')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        selectNode(nodeId === selectedNodeId ? null : nodeId);
+      });
+
+      makeDraggable(node);
+      canvasWorld.appendChild(node);
+      nodes.push({ id: nodeId, type, el: node, x, y, meta });
+      scheduleStateSave();
+      return node;
+    }
+
+    function deleteNode(id) {
+      const idx = nodes.findIndex(n => n.id === id);
+      if (idx >= 0) {
+        nodes[idx].el.remove();
+        nodes.splice(idx, 1);
+        if (selectedNodeId === id) selectNode(null);
+        connections = connections.filter(c => {
+          if (c.from === id || c.to === id) {
+            c.el.remove();
+            return false;
+          }
+          return true;
+        });
+        scheduleStateSave();
+      }
+    }
+
+    // ── Drag nodes ──
+    function makeDraggable(el) {
+      let startX, startY, initialLeft, initialTop, dragging = false;
+
+      el.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.node-port') || e.target.closest('input') || e.target.closest('select') || e.target.closest('button')) return;
+        e.stopPropagation();
+        dragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialLeft = el.offsetLeft;
+        initialTop = el.offsetTop;
+        el.style.zIndex = 100;
+        el.setPointerCapture(e.pointerId);
+      });
+
+      el.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        const dx = (e.clientX - startX) / zoom;
+        const dy = (e.clientY - startY) / zoom;
+        el.style.left = (initialLeft + dx) + 'px';
+        el.style.top = (initialTop + dy) + 'px';
+        renderConnections();
+      });
+
+      el.addEventListener('pointerup', (e) => {
+        if (dragging) {
+          dragging = false;
+          el.style.zIndex = '';
+          el.releasePointerCapture(e.pointerId);
+          const node = nodes.find(n => n.el === el);
+          if (node) {
+            node.x = parseFloat(el.style.left) || 0;
+            node.y = parseFloat(el.style.top) || 0;
+          }
+        }
+      });
+    }
+
+    // ── Connections ──
+    let connectingFrom = null;
+    let previewPath = null;
+
+    function getPortCenter(port) {
+      const node = port.closest('.node');
+      if (port.dataset.port === 'out') {
+        return {
+          x: node.offsetLeft + node.offsetWidth,
+          y: node.offsetTop + node.offsetHeight / 2
+        };
+      } else {
+        return {
+          x: node.offsetLeft,
+          y: node.offsetTop + node.offsetHeight / 2
+        };
+      }
+    }
+
+    function createPreviewPath() {
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.style.stroke = 'rgba(34,197,94,0.7)';
+      path.style.strokeWidth = '2';
+      path.style.fill = 'none';
+      path.style.pointerEvents = 'none';
+      path.style.transition = 'stroke 0.1s';
+      connectionsSvg.appendChild(path);
+      return path;
+    }
+
+    function updatePreviewPath(x1, y1, x2, y2) {
+      if (!previewPath) return;
+      const dx = Math.max(60, Math.abs(x2 - x1) * 0.4);
+      const cx1 = x1 + dx;
+      const cx2 = x2 - dx;
+      previewPath.setAttribute('d', `M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`);
+    }
+
+    function clearPreviewPath() {
+      if (previewPath) {
+        previewPath.remove();
+        previewPath = null;
+      }
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      const port = e.target.closest('.node-port');
+      if (!port) return;
+      if (port.dataset.port !== 'out') return;
+      e.stopPropagation();
+      connectingFrom = port;
+      previewPath = createPreviewPath();
+      const start = getPortCenter(port);
+      const world = screenToWorld(e.clientX, e.clientY);
+      updatePreviewPath(start.x, start.y, world.x, world.y);
+      port.setPointerCapture(e.pointerId);
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!connectingFrom) return;
+      const start = getPortCenter(connectingFrom);
+      const world = screenToWorld(e.clientX, e.clientY);
+      updatePreviewPath(start.x, start.y, world.x, world.y);
+
+      // Highlight potential drop targets
+      const portUnder = document.elementFromPoint(e.clientX, e.clientY);
+      const targetPort = portUnder?.closest('.node-port.in');
+      document.querySelectorAll('.node-port.in').forEach(p => {
+        p.style.boxShadow = p === targetPort ? '0 0 8px 2px rgba(34,197,94,0.6)' : '';
+        p.style.background = p === targetPort ? 'var(--green)' : '#555';
+      });
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
+      if (!connectingFrom) return;
+      const portUnder = document.elementFromPoint(e.clientX, e.clientY);
+      const targetPort = portUnder?.closest('.node-port.in');
+      if (targetPort) {
+        const fromNode = connectingFrom.closest('.node');
+        const toNode = targetPort.closest('.node');
+        if (fromNode && toNode && fromNode !== toNode) {
+          addConnection(fromNode.dataset.id, toNode.dataset.id);
+        }
+      }
+      document.querySelectorAll('.node-port.in').forEach(p => {
+        p.style.boxShadow = '';
+        p.style.background = '';
+      });
+      clearPreviewPath();
+      connectingFrom.releasePointerCapture(e.pointerId);
+      connectingFrom = null;
+    });
+
+    // Cancel connection on Escape or click on empty canvas
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && connectingFrom) {
+        document.querySelectorAll('.node-port.in').forEach(p => {
+          p.style.boxShadow = '';
+          p.style.background = '';
+        });
+        clearPreviewPath();
+        connectingFrom.releasePointerCapture?.(connectingFrom.pointerId || 0);
+        connectingFrom = null;
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId && !e.target.closest('input, textarea, select')) {
+        deleteNode(selectedNodeId);
+        selectNode(null);
+      }
+    });
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (connectingFrom && e.target === canvas) {
+        document.querySelectorAll('.node-port.in').forEach(p => {
+          p.style.boxShadow = '';
+          p.style.background = '';
+        });
+        clearPreviewPath();
+        connectingFrom.releasePointerCapture?.(connectingFrom.pointerId || 0);
+        connectingFrom = null;
+      }
+      if (e.target === canvas || e.target === connectionsSvg || e.target.closest('#canvasWorld')) {
+        selectNode(null);
+      }
+    });
+
+    function addConnection(fromId, toId) {
+      const exists = connections.some(c => c.from === fromId && c.to === toId);
+      if (exists) return;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      connectionsSvg.appendChild(path);
+      connections.push({ from: fromId, to: toId, el: path });
+      renderConnections();
+      scheduleStateSave();
+    }
+
+    function renderConnections() {
+      connections.forEach(c => {
+        const fromNode = nodes.find(n => n.id === c.from);
+        const toNode = nodes.find(n => n.id === c.to);
+        if (!fromNode || !toNode) return;
+        const x1 = fromNode.el.offsetLeft + fromNode.el.offsetWidth;
+        const y1 = fromNode.el.offsetTop + fromNode.el.offsetHeight / 2;
+        const x2 = toNode.el.offsetLeft;
+        const y2 = toNode.el.offsetTop + toNode.el.offsetHeight / 2;
+        const dx = Math.max(60, Math.abs(x2 - x1) * 0.4);
+        const cx1 = x1 + dx;
+        const cx2 = x2 - dx;
+        c.el.setAttribute('d', `M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`);
+      });
+    }
+
+    // ── Palette → create node ──
+    palette.addEventListener('click', (e) => {
+      const item = e.target.closest('.palette-item');
+      if (!item) return;
+      const type = item.dataset.nodeType;
+      const rect = canvas.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+      const world = screenToWorld(rect.left + cx, rect.top + cy);
+      createNode(type, world.x - 98, world.y - 40);
+    });
+
+    // ── Toolbar buttons ──
+    document.getElementById('export-btn')?.addEventListener('click', () => {
+      const data = {
+        nodes: nodes.map(n => ({ id: n.id, type: n.type, x: n.x, y: n.y })),
+        connections: connections.map(c => ({ from: c.from, to: c.to }))
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'macro.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('import-btn')?.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json';
+      input.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (!data.nodes || !Array.isArray(data.nodes)) return;
+            nodes.forEach(n => n.el.remove());
+            connections.forEach(c => c.el.remove());
+            nodes = [];
+            connections = [];
+            data.nodes.forEach(n => {
+              const num = parseInt(n.id.replace('node-', ''), 10);
+              if (!isNaN(num) && num >= nextId) nextId = num + 1;
+              createNode(n.type, n.x, n.y, n.id, n.fields);
+            });
+            (data.connections || []).forEach(c => addConnection(c.from, c.to));
+            scheduleStateSave();
+          } catch {}
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    });
+
+    // ── Canvas panning ──
+    let panning = false, panStartX, panStartY;
+
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.target === canvas || e.target === connectionsSvg || e.target.closest('#canvasWorld')) {
+        if (e.target.closest('.node-port')) return;
+        panning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        canvas.style.cursor = 'grabbing';
+        canvas.setPointerCapture(e.pointerId);
+      }
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!panning) return;
+      const dx = e.clientX - panStartX;
+      const dy = e.clientY - panStartY;
+      panX += dx;
+      panY += dy;
+      panStartX = e.clientX;
+      panStartY = e.clientY;
+      updateWorldTransform();
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
+      if (panning) {
+        panning = false;
+        canvas.style.cursor = 'grab';
+        canvas.releasePointerCapture(e.pointerId);
+      }
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const worldBefore = {
+        x: (mouseX - panX) / zoom,
+        y: (mouseY - panY) / zoom
+      };
+      const delta = -e.deltaY * 0.001;
+      zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * (1 + delta)));
+      panX = mouseX - worldBefore.x * zoom;
+      panY = mouseY - worldBefore.y * zoom;
+      updateWorldTransform();
+    }, { passive: false });
+
+    updateWorldTransform();
+
+    window.addEventListener('resize', () => scheduleStateSave());
+    window.addEventListener('beforeunload', () => {
+      if (stateSaveTimer) clearTimeout(stateSaveTimer);
+      saveAppState();
+    });
+    window.addEventListener('click', (e) => {
+      if (!contextMenu.contains(e.target)) hideContextMenu();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (viewModal.classList.contains('active')) { viewModal.classList.remove('active'); return; }
+        hideContextMenu();
+      }
+    });
+
+    (async () => {
+      await loadAppState();
+      renderMacros();
+    })();
+  </script>
+
+</body>
+</html>
+

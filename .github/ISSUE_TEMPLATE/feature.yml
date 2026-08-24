@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest a new feature for Project M.
+title: '[feature] '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tell us what you'd like to see. We especially like requests that
+        include a short use-case: *what were you trying to do, and what
+        blocked you?*
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      placeholder: |
+        Optional. Did you try a workaround? Did you consider a different
+        design?
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      placeholder: |
+        Mockups, links to similar features in other tools, etc.

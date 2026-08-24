@@ -1,0 +1,123 @@
+{
+  "id": "kalastus",
+  "name": "Kalastus (RedGreenBot)",
+  "description": "Fish bot. Outer loop every 500ms scans the bobber area for green. No green → press 3 (recast). Green found → pixel-watch a 20x20 window centered on green's match for red (background thread, no polling sleeps). 5s timeout on the red watch so a false-positive green doesn't trap the macro; on timeout the outer loop iterates again and re-scans. When red touches, press G.",
+  "icon": "auto",
+  "madeByAi": true,
+  "nodes": [
+    {
+      "id": "n-start",
+      "type": "manual-start",
+      "x": 80,
+      "y": 80,
+      "fields": {}
+    },
+    {
+      "id": "n-outer-loop",
+      "type": "loop",
+      "x": 80,
+      "y": 240,
+      "fields": {
+        "intervalMs": "500",
+        "loopCount": "0"
+      }
+    },
+    {
+      "id": "n-green-pixel",
+      "type": "pixel-scan",
+      "x": 360,
+      "y": 240,
+      "fields": {
+        "fromX": "1644",
+        "fromY": "644",
+        "toX": "1788",
+        "toY": "784",
+        "color": "#81C902",
+        "rTol": "25",
+        "gTol": "30",
+        "bTol": "25",
+        "firstMatchXVar": "greenX",
+        "firstMatchYVar": "greenY",
+        "centerXVar": "centerX",
+        "centerYVar": "centerY"
+      }
+    },
+    {
+      "id": "n-press-3",
+      "type": "ipc-command",
+      "x": 360,
+      "y": 480,
+      "fields": {
+        "command": "3"
+      }
+    },
+    {
+      "id": "n-log-no-green",
+      "type": "log",
+      "x": 600,
+      "y": 480,
+      "fields": {
+        "message": "no green ($n-green-pixel.status) → press 3"
+      }
+    },
+    {
+      "id": "n-red-watch",
+      "type": "pixel-watch",
+      "x": 640,
+      "y": 160,
+      "fields": {
+        "fromX": "1544",
+        "fromY": "544",
+        "toX": "1888",
+        "toY": "884",
+        "color": "#FD3333",
+        "rTol": "25",
+        "gTol": "25",
+        "bTol": "25",
+        "timeoutMs": "3000",
+        "centerOnXVar": "",
+        "centerOnYVar": ""
+      }
+    },
+    {
+      "id": "n-if-found",
+      "type": "if",
+      "x": 920,
+      "y": 160,
+      "fields": {
+        "variable": "$n-red-watch.status",
+        "operator": "equals",
+        "value": "found",
+        "pollMs": "10"
+      }
+    },
+    {
+      "id": "n-press-g",
+      "type": "ipc-command",
+      "x": 1160,
+      "y": 160,
+      "fields": {
+        "command": "G"
+      }
+    },
+    {
+      "id": "n-log-caught",
+      "type": "log",
+      "x": 1400,
+      "y": 160,
+      "fields": {
+        "message": "caught! center=($centerX,$centerY) red=$n-red-watch.status at ($n-red-watch.whereX,$n-red-watch.whereY) → press G"
+      }
+    }
+  ],
+  "connections": [
+    { "from": "n-start",          "to": "n-outer-loop" },
+    { "from": "n-outer-loop",     "to": "n-green-pixel" },
+    { "from": "n-green-pixel",    "to": "n-red-watch" },
+    { "from": "n-green-pixel",    "to": "n-press-3" },
+    { "from": "n-press-3",        "to": "n-log-no-green" },
+    { "from": "n-red-watch",      "to": "n-if-found" },
+    { "from": "n-if-found",       "to": "n-press-g" },
+    { "from": "n-press-g",        "to": "n-log-caught" }
+  ]
+}

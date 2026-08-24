@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Project M",
+  "version": "0.1.0",
+  "identifier": "com.herra-atlas.project-m",
+  "build": {
+    "beforeBuildCommand": "npm run build",
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Project M",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "category": "Productivity",
+    "shortDescription": "Visual macro builder with AI assistant",
+    "longDescription": "Project M is a node-graph macro builder for Windows. Design automations visually, share them, and generate them from natural language using a chat-completion AI of your choice.",
+    "publisher": "Herra-Atlas",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/herra-atlas/project-m/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERBN0NFOTc1MDBENjVBMjEKUldRaFd0WUFkZWw4MmlLc29oV01jVlVHSTNRV1A5VjFRTGxoOFIrbFFocHdzUFhNeHJsR2NIZFIK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

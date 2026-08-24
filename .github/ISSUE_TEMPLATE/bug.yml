@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a bug in Project M.
+title: '[bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Please fill in the sections
+        below — the more detail you give, the faster we can reproduce and fix it.
+
+  - type: input
+    id: version
+    attributes:
+      label: Project M version
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      placeholder: |
+        Describe the bug clearly. Include any error messages you saw.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the editor
+        2. Add a ...
+        3. Click ...
+      render: shell
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      placeholder: |
+        Paste relevant logs from the macro's logs.jsonl or attach screenshots.
+      render: text
+
+  - type: checkboxes
+    id: search
+    attributes:
+      label: Checklist
+      options:
+        - label: I've searched existing issues to make sure this isn't a duplicate
+          required: true

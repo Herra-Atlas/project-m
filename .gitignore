@@ -1,0 +1,50 @@
+# Node
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+src-tauri/.cargo/
+*.rs.bk
+Cargo.lock.bak
+tauri.conf.json.bak
+
+# Build artifacts
+*.log
+*.tsbuildinfo
+.cache/
+
+# Secrets — never commit
+keys/
+*.key
+*.pem
+.env
+.env.*
+!.env.example
+
+# Local data
+.kilo/
+.kilocode/
+.opencode/
+.DS_Store
+
+# Coverage / test outputs
+coverage/
+.nyc_output/

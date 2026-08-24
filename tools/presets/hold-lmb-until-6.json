@@ -1,0 +1,66 @@
+{
+  "title": "Hold LMB until 6",
+  "description": "Spams left mouse button. Stops when you press 6.",
+  "nodes": [
+    {
+      "id": "n-start",
+      "type": "manual-start",
+      "x": 80,
+      "y": 240,
+      "fields": {}
+    },
+    {
+      "id": "n-loop",
+      "type": "loop",
+      "x": 320,
+      "y": 240,
+      "fields": {
+        "intervalMs": "50",
+        "loopCount": "0"
+      }
+    },
+    {
+      "id": "n-click",
+      "type": "mouse-click",
+      "x": 580,
+      "y": 160,
+      "fields": {
+        "button": "left",
+        "count": "10000",
+        "delayMs": "50"
+      }
+    },
+    {
+      "id": "n-trigger",
+      "type": "hotkey-trigger",
+      "x": 580,
+      "y": 360,
+      "fields": {
+        "key": "6"
+      }
+    },
+    {
+      "id": "n-break",
+      "type": "break",
+      "x": 820,
+      "y": 360,
+      "fields": {}
+    },
+    {
+      "id": "n-log",
+      "type": "log",
+      "x": 1040,
+      "y": 360,
+      "fields": {
+        "message": "stopped by 6"
+      }
+    }
+  ],
+  "connections": [
+    { "from": "n-start",   "to": "n-loop" },
+    { "from": "n-loop",    "to": "n-click" },
+    { "from": "n-loop",    "to": "n-trigger" },
+    { "from": "n-trigger", "to": "n-break" },
+    { "from": "n-break",   "to": "n-log" }
+  ]
+}
