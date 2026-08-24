@@ -27,6 +27,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "createUpdaterArtifacts": true,
     "category": "Productivity",
     "shortDescription": "Visual macro builder with AI assistant",
     "longDescription": "Project M is a node-graph macro builder for Windows. Design automations visually, share them, and generate them from natural language using a chat-completion AI of your choice.",
