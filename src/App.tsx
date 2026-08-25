@@ -59,7 +59,8 @@ export default function App() {
 }
 
 function AppInner() {
-  const { showError } = useError();
+  const { showError, error, info, success } = useError();
+  const toast = { error, info, success, showError };
   const updater = useUpdater();
   const [page, setPage] = useState<Page>('home');
   const [macros, setMacros] = useState<Macro[]>([]);
@@ -1593,13 +1594,13 @@ const performRunMacro = useCallback(
                     size="sm"
                     onClick={async () => {
                       try {
-                        const paths = await invoke<{ resource_dir: string }>('install_paths');
-                        const presets = `${paths.resource_dir.replace(/\\/g, '/')}/tools/presets`;
-                        const newId = await invoke<string>('import_macro_folder', {
-                          mode: 'copy',
-                          source: presets,
-                        });
-                        // Reload library.
+                        const result = await invoke<{
+                          imported: string[];
+                          skipped: string[];
+                          failed: string[];
+                          source: string;
+                        }>('import_bundled_presets');
+                        // Reload library so the new macros appear immediately.
                         const macroStrings = await invoke<string[]>('list_macros');
                         const loaded: Macro[] = [];
                         for (const raw of macroStrings) {
@@ -1609,14 +1610,28 @@ const performRunMacro = useCallback(
                           } catch {}
                         }
                         setMacros(loaded);
-                        const created = loaded.find((m) => m.id === newId);
-                        showError(
-                          created
-                            ? `Imported "${created.title}".`
-                            : 'No new presets to import (all already exist).',
-                        );
+                        const parts: string[] = [];
+                        if (result.imported.length > 0) {
+                          parts.push(`Imported ${result.imported.length}: ${result.imported.join(', ')}.`);
+                        }
+                        if (result.skipped.length > 0) {
+                          parts.push(`Skipped (already present): ${result.skipped.join(', ')}.`);
+                        }
+                        if (result.failed.length > 0) {
+                          parts.push(`Failed: ${result.failed.join('; ')}.`);
+                        }
+                        if (parts.length === 0) {
+                          toast.error(
+                            `No presets found at ${result.source}.\nReinstall the app or import macros manually.`,
+                            'Bundled presets missing',
+                          );
+                        } else if (result.failed.length > 0) {
+                          toast.error(parts.join('\n'), 'Imported with errors');
+                        } else {
+                          toast.success(parts.join('\n'), 'Presets imported');
+                        }
                       } catch (err) {
-                        showError(`Failed to import presets: ${err}`);
+                        toast.error(`Failed to import presets: ${err}`);
                       }
                     }}
                   >

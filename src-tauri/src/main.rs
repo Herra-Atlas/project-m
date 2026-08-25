@@ -442,6 +442,11 @@ fn install_paths(app: AppHandle) -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
+fn import_bundled_presets(app: AppHandle) -> Result<macros_fs::PresetImportResult, String> {
+    macros_fs::import_bundled_presets(&app)
+}
+
+#[tauri::command]
 fn show_region_overlay(x1: i32, y1: i32, x2: i32, y2: i32) -> Result<(), String> {
     overlay::show_overlay(x1, y1, x2, y2)
 }
@@ -521,7 +526,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, save_macro, delete_macro_file, list_macros, read_macro_file, read_macro_chat, write_macro_chat, append_macro_log, find_macro_by_title, import_macro_folder, install_paths, get_mouse_info, check_ahk, start_ipc_listener, kilo::kilo_list_models, kilo::kilo_test_api_key, kilo::kilo_chat_stream, kilo::kilo_get_api_key, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay])
+        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, save_macro, delete_macro_file, list_macros, read_macro_file, read_macro_chat, write_macro_chat, append_macro_log, find_macro_by_title, import_macro_folder, import_bundled_presets, install_paths, get_mouse_info, check_ahk, start_ipc_listener, kilo::kilo_list_models, kilo::kilo_test_api_key, kilo::kilo_chat_stream, kilo::kilo_get_api_key, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

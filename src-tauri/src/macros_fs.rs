@@ -339,3 +339,144 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// Locate the on-disk path of the bundled `tools/presets/` directory.
+/// Probes several candidate locations so we don't break when the
+/// installer stage dir (`_up_`) exists alongside the real install path.
+pub fn bundled_presets_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    use tauri::Manager;
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        candidates.push(resource_dir.join("tools").join("presets"));
+        candidates.push(resource_dir.join("presets"));
+    }
+    // Tauri 2 NSIS layout: <install_root>/resources/tools/presets
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            candidates.push(dir.join("resources").join("tools").join("presets"));
+            candidates.push(dir.join("..").join("resources").join("tools").join("presets"));
+            // Dev runs from src-tauri/target/<profile>/.
+            candidates.push(
+                dir.join("..")
+                    .join("..")
+                    .join("..")
+                    .join("tools")
+                    .join("presets"),
+            );
+            // Some Tauri versions stage under _up_ during in-place upgrade.
+            candidates.push(dir.join("_up_").join("tools").join("presets"));
+            candidates.push(
+                dir.join("..")
+                    .join("_up_")
+                    .join("tools")
+                    .join("presets"),
+            );
+        }
+    }
+    candidates
+        .into_iter()
+        .find(|p| p.is_dir())
+        .ok_or_else(|| {
+            "Bundled presets directory not found. Reinstall the app or import macros manually.".to_string()
+        })
+}
+
+/// Import every macro folder under the bundled `presets/` directory.
+/// Each subfolder must contain a `macro.json`. Folders whose id already
+/// exists locally are skipped (no overwrite). Returns the list of
+/// imported macro titles (or skipped ids).
+#[derive(serde::Serialize)]
+pub struct PresetImportResult {
+    pub imported: Vec<String>,
+    pub skipped: Vec<String>,
+    pub failed: Vec<String>,
+    pub source: String,
+}
+
+pub fn import_bundled_presets(app: &tauri::AppHandle) -> Result<PresetImportResult, String> {
+    let presets_root = bundled_presets_dir(app)?;
+    let source_str = presets_root.to_string_lossy().to_string();
+
+    let mut imported = Vec::new();
+    let mut skipped = Vec::new();
+    let mut failed = Vec::new();
+
+    let entries = fs::read_dir(&presets_root).map_err(|e| e.to_string())?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let macro_json = path.join("macro.json");
+        if !macro_json.is_file() {
+            continue;
+        }
+        // Quick peek: skip if id already present in local library.
+        let raw = match fs::read_to_string(&macro_json) {
+            Ok(s) => s,
+            Err(e) => {
+                failed.push(format!("{}: read error {e}", entry.file_name().to_string_lossy()));
+                continue;
+            }
+        };
+        let parsed: Value = match serde_json::from_str(&raw) {
+            Ok(v) => v,
+            Err(e) => {
+                failed.push(format!("{}: invalid JSON {e}", entry.file_name().to_string_lossy()));
+                continue;
+            }
+        };
+        let base_id = match parsed.get("id").and_then(|x| x.as_str()) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => {
+                failed.push(format!(
+                    "{}: missing `id` field",
+                    entry.file_name().to_string_lossy()
+                ));
+                continue;
+            }
+        };
+        if macro_exists(app, &base_id).unwrap_or(false) {
+            skipped.push(base_id);
+            continue;
+        }
+
+        let target_id = next_unique_id(app, &base_id);
+        let target = macro_dir(app, &target_id)?;
+        if target.exists() {
+            skipped.push(base_id);
+            continue;
+        }
+        if let Err(e) = copy_dir_recursive(&path, &target) {
+            failed.push(format!("{base_id}: copy failed {e}"));
+            continue;
+        }
+        // Re-stamp the id inside macro.json.
+        let target_macro = target.join("macro.json");
+        if let Ok(mut json) = serde_json::from_str::<Value>(
+            &fs::read_to_string(&target_macro).unwrap_or_default(),
+        ) {
+            if let Some(obj) = json.as_object_mut() {
+                obj.insert("id".into(), Value::String(target_id.clone()));
+            }
+            let _ = fs::write(
+                &target_macro,
+                serde_json::to_string_pretty(&json).unwrap_or_default(),
+            );
+        }
+        let title = parsed
+            .get("title")
+            .and_then(|x| x.as_str())
+            .unwrap_or(&base_id)
+            .to_string();
+        imported.push(title);
+    }
+
+    Ok(PresetImportResult {
+        imported,
+        skipped,
+        failed,
+        source: source_str,
+    })
+}
