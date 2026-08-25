@@ -199,7 +199,7 @@ These are the things that catch 95% of release-day bugs:
 
 #### 3. Bump the version
 
-Two places, both currently `0.1.7`:
+Two places, both currently `0.1.8`:
 
 - `package.json` → `"version": "0.x.y"`
 - `src-tauri/tauri.conf.json` → `"version": "0.x.y"`

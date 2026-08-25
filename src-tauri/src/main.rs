@@ -358,58 +358,92 @@ fn start_ipc_listener(app: AppHandle) -> Result<(), String> {
 
     let mut candidates: Vec<PathBuf> = Vec::new();
 
-    // 1. Bundled resources (production). Tauri places every entry in
-    //    `bundle.resources` under `<resource_dir>/<key>` where `key` is the
-    //    path relative to the project root, with each `/` preserved.
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        candidates.push(resource_dir.join("tools").join("ipc-listener").join(exe_name));
-        candidates.push(resource_dir.join("ipc-listener").join(exe_name));
-        candidates.push(resource_dir.join(exe_name));
-    }
-
-    // 2. Adjacent to the running executable's parents (dev runs from
-    //    src-tauri/target/<profile>/).
+    // Anchor: the directory of the running exe. NSIS installs put `macro.exe`
+    // directly under `%LOCALAPPDATA%\Programs\<productName>\` and stage
+    // bundled resources under `<exe>/_up_/...` until the installer finishes
+    // cleanup — but in some upgrade scenarios the `_up_` directory persists
+    // alongside the new install.
+    let mut anchors: Vec<PathBuf> = Vec::new();
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            for ancestor in [
-                dir.to_path_buf(),
-                dir.join("..").join("..").join("..").join("tools").join("ipc-listener"),
-                dir.join("..").join("..").join("tools").join("ipc-listener"),
-                dir.join("..").join("tools").join("ipc-listener"),
-            ] {
-                if !candidates.iter().any(|c| c.parent() == Some(ancestor.as_path())) {
-                    candidates.push(ancestor.join(exe_name));
+            anchors.push(dir.to_path_buf());
+            // NSIS staging dir.
+            anchors.push(dir.join("_up_"));
+            // Tauri 2 resource_dir() on Windows NSIS points at the exe dir.
+            anchors.push(dir.to_path_buf());
+        }
+    }
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        let r = resource_dir;
+        anchors.push(r.clone());
+        anchors.push(r.join("_up_"));
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        let c = cwd;
+        anchors.push(c.clone());
+        anchors.push(c.join("_up_"));
+    }
+
+    // For every anchor, probe a fixed list of candidate layouts.
+    for anchor in &anchors {
+        candidates.push(anchor.join("tools").join("ipc-listener").join(exe_name));
+        candidates.push(anchor.join("ipc-listener").join(exe_name));
+        candidates.push(anchor.join("resources").join("tools").join("ipc-listener").join(exe_name));
+        candidates.push(anchor.join("resources").join("ipc-listener").join(exe_name));
+        candidates.push(anchor.join(exe_name));
+    }
+
+    // Dev runs from src-tauri/target/<profile>/ — `macro.exe` lives three
+    // levels below the project root, so the tools dir is `../../../tools/...`.
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            for up in 1..=4 {
+                let mut ancestor = dir.to_path_buf();
+                for _ in 0..up {
+                    if !ancestor.pop() {
+                        break;
+                    }
                 }
+                candidates.push(ancestor.join("tools").join("ipc-listener").join(exe_name));
             }
         }
     }
 
-    // 3. CWD-relative fallback (dev convenience).
-    if let Ok(cwd) = std::env::current_dir() {
-        candidates.push(cwd.join("tools").join("ipc-listener").join(exe_name));
-    }
-
-    let chosen = candidates
-        .into_iter()
-        .find(|p| p.exists())
-        .ok_or_else(|| {
-            format!(
-                "Could not find {}. Looked in {} candidate locations; check the install or rebuild with bundle.resources set.",
+    // Log every candidate we tried so the failure message is diagnostic.
+    let chosen = candidates.iter().find(|p| p.exists()).cloned();
+    match chosen {
+        Some(path) => {
+            log::info!(
+                "Starting AHK IPC listener: {} (probed {} candidates)",
+                path.display(),
+                candidates.len()
+            );
+            Command::new(&path)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|e| format!("Failed to launch {}: {}", path.display(), e))?;
+            Ok(())
+        }
+        None => {
+            // Build a diagnostic showing every path we checked, with exists/no.
+            let mut lines = Vec::with_capacity(candidates.len() + 1);
+            lines.push(format!(
+                "Could not find {}. Probed {} candidate locations:",
                 exe_name,
-                "tools/ipc-listener/",
-            )
-        })?;
-
-    log::info!("Starting AHK IPC listener: {}", chosen.display());
-
-    Command::new(&chosen)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| format!("Failed to launch {}: {}", chosen.display(), e))?;
-
-    Ok(())
+                candidates.len()
+            ));
+            for c in &candidates {
+                lines.push(format!(
+                    "  {} [{}]",
+                    c.display(),
+                    if c.exists() { "FOUND" } else { "missing" }
+                ));
+            }
+            Err(lines.join("\n"))
+        }
+    }
 }
 
 /// Expose the install's data + resource directories to the frontend. Used
@@ -452,6 +486,99 @@ fn import_bundled_presets(app: AppHandle) -> Result<macros_fs::PresetImportResul
 #[tauri::command]
 fn github_repo_url() -> &'static str {
     "https://github.com/Herra-Atlas/project-m"
+}
+
+/// On NSIS in-place upgrades, staged resources can land in `<install_root>/_up_/`
+/// and never get moved to the final layout if the app's `macro.exe` was
+/// locked when the installer tried to copy. This command reconciles the
+/// two locations so the running app sees the freshly-installed resources.
+///
+/// Returns the number of files moved.
+#[tauri::command]
+fn reconcile_nsis_up_dir() -> Result<usize, String> {
+    use std::path::PathBuf;
+    let mut moved = 0usize;
+
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let install_root = exe.parent().ok_or("no parent of current_exe")?.to_path_buf();
+    let up_root = install_root.join("_up_");
+    if !up_root.is_dir() {
+        return Ok(0);
+    }
+
+    fn move_into(parent: &std::path::Path, root: &std::path::Path) -> std::io::Result<usize> {
+        let mut n = 0usize;
+        if !parent.is_dir() {
+            return Ok(0);
+        }
+        for entry in std::fs::read_dir(parent)? {
+            let entry = entry?;
+            let from = entry.path();
+            let file_name = match entry.file_name().into_string() {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            // Skip our own marker / lock files.
+            if file_name.ends_with(".lock") || file_name == "_up_" {
+                continue;
+            }
+            let to = root.join(&file_name);
+            if to.exists() {
+                // Already present at destination — remove the staged copy
+                // (or replace if the staged file is newer; we keep the
+                // existing file to avoid stomping user changes).
+                if from.is_dir() {
+                    let _ = std::fs::remove_dir_all(&from);
+                } else {
+                    let _ = std::fs::remove_file(&from);
+                }
+                continue;
+            }
+            if from.is_dir() {
+                std::fs::rename(&from, &to)?;
+            } else {
+                // Ensure parent exists at destination.
+                if let Some(p) = to.parent() {
+                    let _ = std::fs::create_dir_all(p);
+                }
+                std::fs::rename(&from, &to)?;
+            }
+            n += 1;
+        }
+        Ok(n)
+    }
+
+    // Walk every direct child of _up_ (e.g. `tools`, any other top-level
+    // resource dirs) and try to move it to install_root.
+    for entry in std::fs::read_dir(&up_root).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let from = entry.path();
+        if !from.is_dir() {
+            continue;
+        }
+        let dir_name = match entry.file_name().into_string() {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        if dir_name == "_up_" {
+            continue;
+        }
+        let target_dir = install_root.join(&dir_name);
+        let _ = std::fs::create_dir_all(&target_dir);
+        match move_into(&from, &target_dir) {
+            Ok(n) => moved += n,
+            Err(e) => log::warn!("reconcile failed for {}: {e}", from.display()),
+        }
+    }
+
+    // If _up_ is now empty, remove it.
+    if let Ok(read) = std::fs::read_dir(&up_root) {
+        if read.flatten().count() == 0 {
+            let _ = std::fs::remove_dir(&up_root);
+        }
+    }
+
+    Ok(moved)
 }
 
 #[tauri::command]
@@ -510,6 +637,16 @@ pub fn run() {
             running_macro_id: Arc::new(Mutex::new(None)),
         })
         .setup(|app| {
+            // NSIS in-place upgrades can leave bundled resources staged in
+            // `<install_root>/_up_/...` if the previous exe was running when
+            // the installer tried to copy them. Move them into place so the
+            // IPC listener and bundled-presets paths resolve. Failures are
+            // logged but non-fatal — the fallback path search in
+            // `start_ipc_listener` still finds them in `_up_`.
+            if let Err(e) = reconcile_nsis_up_dir() {
+                log::warn!("NSIS reconcile failed: {e}");
+            }
+
             // Re-register the saved Force Stop keybind on launch so the user
             // doesn't have to reconfigure it every restart. Failures are
             // logged but non-fatal — the app still works without a keybind.
@@ -535,7 +672,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, save_macro, delete_macro_file, list_macros, read_macro_file, read_macro_chat, write_macro_chat, append_macro_log, find_macro_by_title, import_macro_folder, import_bundled_presets, install_paths, github_repo_url, get_mouse_info, check_ahk, start_ipc_listener, kilo::kilo_list_models, kilo::kilo_test_api_key, kilo::kilo_chat_stream, kilo::kilo_get_api_key, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay])
+        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, save_macro, delete_macro_file, list_macros, read_macro_file, read_macro_chat, write_macro_chat, append_macro_log, find_macro_by_title, import_macro_folder, import_bundled_presets, install_paths, github_repo_url, reconcile_nsis_up_dir, get_mouse_info, check_ahk, start_ipc_listener, kilo::kilo_list_models, kilo::kilo_test_api_key, kilo::kilo_chat_stream, kilo::kilo_get_api_key, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
