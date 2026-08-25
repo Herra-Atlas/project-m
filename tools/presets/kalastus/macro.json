@@ -1,13 +1,14 @@
 {
-  "exportedAt": "2026-07-30T08:19:19.852Z",
-  "title": "koksu",
-  "description": "Koksu bot, E-cadence variant. Outer loop every 700ms scans the bobber area for green. No green → press E (idle recast). Green found → pixel-watch a 20x20 window centered on green's match for red (background thread, no polling sleeps). 5s timeout on the red watch so a false-positive green doesn't trap the macro; on timeout the outer loop iterates again and re-scans. When red touches, press E.",
+  "id": "kalastus",
+  "description": "Fish bot. Outer loop every 500ms scans the bobber area for green. No green → press 3 (recast). Green found → pixel-watch a 20x20 window centered on green's match for red (background thread, no polling sleeps). 5s timeout on the red watch so a false-positive green doesn't trap the macro; on timeout the outer loop iterates again and re-scans. When red touches, press G.",
+  "icon": "auto",
+  "madeByAi": true,
   "nodes": [
     {
       "id": "n-start",
       "type": "manual-start",
-      "x": -251.24606610743746,
-      "y": 291.9974823087599,
+      "x": 80,
+      "y": 80,
       "fields": {}
     },
     {
@@ -16,7 +17,7 @@
       "x": 80,
       "y": 240,
       "fields": {
-        "intervalMs": "700",
+        "intervalMs": "500",
         "loopCount": "0"
       }
     },
@@ -28,8 +29,8 @@
       "fields": {
         "fromX": "1644",
         "fromY": "644",
-        "toX": "1792",
-        "toY": "794",
+        "toX": "1788",
+        "toY": "784",
         "color": "#81C902",
         "rTol": "25",
         "gTol": "30",
@@ -41,40 +42,40 @@
       }
     },
     {
-      "id": "n-press-e-idle",
+      "id": "n-press-3",
       "type": "ipc-command",
-      "x": 643.034556578641,
-      "y": 607.0522846229519,
+      "x": 360,
+      "y": 480,
       "fields": {
-        "command": "e"
+        "command": "3"
       }
     },
     {
       "id": "n-log-no-green",
       "type": "log",
-      "x": 929.4645084908664,
-      "y": 626.1867846390933,
+      "x": 600,
+      "y": 480,
       "fields": {
-        "message": "no green ($n-green-pixel.status) → press e"
+        "message": "no green ($n-green-pixel.status) → press 3"
       }
     },
     {
       "id": "n-red-watch",
       "type": "pixel-watch",
-      "x": 638.190035838495,
-      "y": 162.71494624225753,
+      "x": 640,
+      "y": 160,
       "fields": {
-        "fromX": "0",
-        "fromY": "0",
-        "toX": "9",
-        "toY": "9",
+        "fromX": "1544",
+        "fromY": "544",
+        "toX": "1888",
+        "toY": "884",
         "color": "#FD3333",
         "rTol": "25",
         "gTol": "25",
         "bTol": "25",
-        "timeoutMs": "1000",
-        "centerOnXVar": "centerX",
-        "centerOnYVar": "centerY"
+        "timeoutMs": "3000",
+        "centerOnXVar": "",
+        "centerOnYVar": ""
       }
     },
     {
@@ -90,12 +91,12 @@
       }
     },
     {
-      "id": "n-press-e-catch",
+      "id": "n-press-g",
       "type": "ipc-command",
       "x": 1160,
       "y": 160,
       "fields": {
-        "command": "e"
+        "command": "G"
       }
     },
     {
@@ -104,7 +105,7 @@
       "x": 1400,
       "y": 160,
       "fields": {
-        "message": "caught! center=($centerX,$centerY) red=$n-red-watch.status at ($n-red-watch.whereX,$n-red-watch.whereY) → press e"
+        "message": "caught! center=($centerX,$centerY) red=$n-red-watch.status at ($n-red-watch.whereX,$n-red-watch.whereY) → press G"
       }
     }
   ],
@@ -123,10 +124,10 @@
     },
     {
       "from": "n-green-pixel",
-      "to": "n-press-e-idle"
+      "to": "n-press-3"
     },
     {
-      "from": "n-press-e-idle",
+      "from": "n-press-3",
       "to": "n-log-no-green"
     },
     {
@@ -135,11 +136,12 @@
     },
     {
       "from": "n-if-found",
-      "to": "n-press-e-catch"
+      "to": "n-press-g"
     },
     {
-      "from": "n-press-e-catch",
+      "from": "n-press-g",
       "to": "n-log-caught"
     }
-  ]
+  ],
+  "title": "Kalastus (RedGreenBot)"
 }

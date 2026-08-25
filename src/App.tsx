@@ -1580,6 +1580,49 @@ const performRunMacro = useCallback(
                     )}
                   </div>
                 </div>
+
+                <div className="mt-4 flex items-center justify-between gap-2 rounded-md border border-white/5 bg-neutral-950/40 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-medium text-neutral-200">Bundled presets</div>
+                    <div className="mt-0.5 text-[11px] text-neutral-500">
+                      Sample macros that ship with the installer. Import skips any whose id already exists in your library.
+                    </div>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const paths = await invoke<{ resource_dir: string }>('install_paths');
+                        const presets = `${paths.resource_dir.replace(/\\/g, '/')}/tools/presets`;
+                        const newId = await invoke<string>('import_macro_folder', {
+                          mode: 'copy',
+                          source: presets,
+                        });
+                        // Reload library.
+                        const macroStrings = await invoke<string[]>('list_macros');
+                        const loaded: Macro[] = [];
+                        for (const raw of macroStrings) {
+                          try {
+                            const data = JSON.parse(raw);
+                            if (data && data.id) loaded.push(data as Macro);
+                          } catch {}
+                        }
+                        setMacros(loaded);
+                        const created = loaded.find((m) => m.id === newId);
+                        showError(
+                          created
+                            ? `Imported "${created.title}".`
+                            : 'No new presets to import (all already exist).',
+                        );
+                      } catch (err) {
+                        showError(`Failed to import presets: ${err}`);
+                      }
+                    }}
+                  >
+                    Import bundled presets
+                  </Button>
+                </div>
               </Card>
             )}
           </div>

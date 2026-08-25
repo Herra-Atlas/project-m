@@ -57,10 +57,26 @@
     }
   ],
   "connections": [
-    { "from": "n-start",   "to": "n-loop" },
-    { "from": "n-loop",    "to": "n-click" },
-    { "from": "n-loop",    "to": "n-trigger" },
-    { "from": "n-trigger", "to": "n-break" },
-    { "from": "n-break",   "to": "n-log" }
-  ]
+    {
+      "from": "n-start",
+      "to": "n-loop"
+    },
+    {
+      "from": "n-loop",
+      "to": "n-click"
+    },
+    {
+      "from": "n-loop",
+      "to": "n-trigger"
+    },
+    {
+      "from": "n-trigger",
+      "to": "n-break"
+    },
+    {
+      "from": "n-break",
+      "to": "n-log"
+    }
+  ],
+  "id": "hold-lmb-until-6"
 }

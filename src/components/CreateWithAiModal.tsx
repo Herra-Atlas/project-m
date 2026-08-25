@@ -1241,7 +1241,9 @@ const ActionCardView = memo(function ActionCardView({
     if (!body || typeof body !== 'object') return null;
     const byId = typeof body.id === 'string' ? macrosById.get(body.id) : null;
     if (byId) return byId;
-    if (typeof body.title === 'string') return macrosByTitle.get(body.title.toLowerCase()) ?? null;
+    if (typeof body.title === 'string' && body.title.length > 0) {
+      return macrosByTitle.get(body.title.toLowerCase()) ?? null;
+    }
     return null;
   }, [action.kind, action.value, macrosById, macrosByTitle]);
 

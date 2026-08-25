@@ -1,0 +1,145 @@
+{
+  "title": "koksu",
+  "description": "Koksu bot, E-cadence variant. Outer loop every 700ms scans the bobber area for green. No green → press E (idle recast). Green found → pixel-watch a 20x20 window centered on green's match for red (background thread, no polling sleeps). 5s timeout on the red watch so a false-positive green doesn't trap the macro; on timeout the outer loop iterates again and re-scans. When red touches, press E.",
+  "nodes": [
+    {
+      "id": "n-start",
+      "type": "manual-start",
+      "x": -251.24606610743746,
+      "y": 291.9974823087599,
+      "fields": {}
+    },
+    {
+      "id": "n-outer-loop",
+      "type": "loop",
+      "x": 80,
+      "y": 240,
+      "fields": {
+        "intervalMs": "700",
+        "loopCount": "0"
+      }
+    },
+    {
+      "id": "n-green-pixel",
+      "type": "pixel-scan",
+      "x": 360,
+      "y": 240,
+      "fields": {
+        "fromX": "1644",
+        "fromY": "644",
+        "toX": "1792",
+        "toY": "794",
+        "color": "#81C902",
+        "rTol": "25",
+        "gTol": "30",
+        "bTol": "25",
+        "firstMatchXVar": "greenX",
+        "firstMatchYVar": "greenY",
+        "centerXVar": "centerX",
+        "centerYVar": "centerY"
+      }
+    },
+    {
+      "id": "n-press-e-idle",
+      "type": "ipc-command",
+      "x": 643.034556578641,
+      "y": 607.0522846229519,
+      "fields": {
+        "command": "e"
+      }
+    },
+    {
+      "id": "n-log-no-green",
+      "type": "log",
+      "x": 929.4645084908664,
+      "y": 626.1867846390933,
+      "fields": {
+        "message": "no green ($n-green-pixel.status) → press e"
+      }
+    },
+    {
+      "id": "n-red-watch",
+      "type": "pixel-watch",
+      "x": 638.190035838495,
+      "y": 162.71494624225753,
+      "fields": {
+        "fromX": "0",
+        "fromY": "0",
+        "toX": "9",
+        "toY": "9",
+        "color": "#FD3333",
+        "rTol": "25",
+        "gTol": "25",
+        "bTol": "25",
+        "timeoutMs": "1000",
+        "centerOnXVar": "centerX",
+        "centerOnYVar": "centerY"
+      }
+    },
+    {
+      "id": "n-if-found",
+      "type": "if",
+      "x": 920,
+      "y": 160,
+      "fields": {
+        "variable": "$n-red-watch.status",
+        "operator": "equals",
+        "value": "found",
+        "pollMs": "10"
+      }
+    },
+    {
+      "id": "n-press-e-catch",
+      "type": "ipc-command",
+      "x": 1160,
+      "y": 160,
+      "fields": {
+        "command": "e"
+      }
+    },
+    {
+      "id": "n-log-caught",
+      "type": "log",
+      "x": 1400,
+      "y": 160,
+      "fields": {
+        "message": "caught! center=($centerX,$centerY) red=$n-red-watch.status at ($n-red-watch.whereX,$n-red-watch.whereY) → press e"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": "n-start",
+      "to": "n-outer-loop"
+    },
+    {
+      "from": "n-outer-loop",
+      "to": "n-green-pixel"
+    },
+    {
+      "from": "n-green-pixel",
+      "to": "n-red-watch"
+    },
+    {
+      "from": "n-green-pixel",
+      "to": "n-press-e-idle"
+    },
+    {
+      "from": "n-press-e-idle",
+      "to": "n-log-no-green"
+    },
+    {
+      "from": "n-red-watch",
+      "to": "n-if-found"
+    },
+    {
+      "from": "n-if-found",
+      "to": "n-press-e-catch"
+    },
+    {
+      "from": "n-press-e-catch",
+      "to": "n-log-caught"
+    }
+  ],
+  "id": "koksu"
+}
