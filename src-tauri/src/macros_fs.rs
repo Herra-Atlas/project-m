@@ -200,46 +200,84 @@ pub fn ensure_chat_file(dir: &Path) -> Result<(), String> {
 /// Copy a folder from `src` into `<macros_root>/<sanitized_id>/`. Used by
 /// "Import" when the user picks Copy. Returns the id of the imported folder.
 pub fn import_copy(app: &tauri::AppHandle, src: &Path) -> Result<String, String> {
-    let raw = fs::read_to_string(src.join("macro.json")).map_err(|e| e.to_string())?;
-    let parsed: Value = serde_json::from_str(&raw).map_err(|e| format!("invalid macro.json: {e}"))?;
+    let macro_path = src.join("macro.json");
+    if !src.is_dir() {
+        return Err(format!(
+            "Source is not a folder: {}",
+            src.display()
+        ));
+    }
+    if !macro_path.is_file() {
+        return Err(format!(
+            "Folder does not contain macro.json — looked at {}.\nExpected layout: <folder>/macro.json + optional ai-chat.json, logs.jsonl, assets/",
+            macro_path.display()
+        ));
+    }
+    let raw = fs::read_to_string(&macro_path)
+        .map_err(|e| format!("Failed to read {}: {e}", macro_path.display()))?;
+    let parsed: Value = serde_json::from_str(&raw)
+        .map_err(|e| format!("invalid macro.json at {}: {e}", macro_path.display()))?;
     let base_id = parsed
         .get("id")
         .and_then(|x| x.as_str())
-        .ok_or_else(|| "macro.json missing id field".to_string())?
+        .ok_or_else(|| format!("macro.json at {} is missing the required `id` field", macro_path.display()))?
         .to_string();
     let target_id = next_unique_id(app, &base_id);
     let target = macro_dir(app, &target_id)?;
     if target.exists() {
-        return Err(format!("target {} already exists", target.display()));
+        return Err(format!(
+            "target {} already exists (id collision after rename)",
+            target.display()
+        ));
     }
     copy_dir_recursive(src, &target)?;
-    // Re-stamp the id inside the copied macro.json so the on-disk folder
-    // matches the in-memory id we returned.
     let macro_path = target.join("macro.json");
-    let mut json: Value = serde_json::from_str(&fs::read_to_string(&macro_path).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
+    let mut json: Value =
+        serde_json::from_str(&fs::read_to_string(&macro_path).map_err(|e| e.to_string())?)
+            .map_err(|e| e.to_string())?;
     if let Some(obj) = json.as_object_mut() {
         obj.insert("id".into(), Value::String(target_id.clone()));
     }
-    fs::write(&macro_path, serde_json::to_string_pretty(&json).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
+    fs::write(
+        &macro_path,
+        serde_json::to_string_pretty(&json).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
     Ok(target_id)
 }
 
 /// Move a folder from `src` into `<macros_root>/<sanitized_id>/`. Used by
 /// "Import" when the user picks Move. Same id-reroot logic as import_copy.
 pub fn import_move(app: &tauri::AppHandle, src: &Path) -> Result<String, String> {
-    let raw = fs::read_to_string(src.join("macro.json")).map_err(|e| e.to_string())?;
-    let parsed: Value = serde_json::from_str(&raw).map_err(|e| format!("invalid macro.json: {e}"))?;
+    let macro_path = src.join("macro.json");
+    if !src.is_dir() {
+        return Err(format!(
+            "Source is not a folder: {}",
+            src.display()
+        ));
+    }
+    if !macro_path.is_file() {
+        return Err(format!(
+            "Folder does not contain macro.json — looked at {}.\nExpected layout: <folder>/macro.json + optional ai-chat.json, logs.jsonl, assets/",
+            macro_path.display()
+        ));
+    }
+    let raw = fs::read_to_string(&macro_path)
+        .map_err(|e| format!("Failed to read {}: {e}", macro_path.display()))?;
+    let parsed: Value = serde_json::from_str(&raw)
+        .map_err(|e| format!("invalid macro.json at {}: {e}", macro_path.display()))?;
     let base_id = parsed
         .get("id")
         .and_then(|x| x.as_str())
-        .ok_or_else(|| "macro.json missing id field".to_string())?
+        .ok_or_else(|| format!("macro.json at {} is missing the required `id` field", macro_path.display()))?
         .to_string();
     let target_id = next_unique_id(app, &base_id);
     let target = macro_dir(app, &target_id)?;
     if target.exists() {
-        return Err(format!("target {} already exists", target.display()));
+        return Err(format!(
+            "target {} already exists (id collision after rename)",
+            target.display()
+        ));
     }
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -247,11 +285,16 @@ pub fn import_move(app: &tauri::AppHandle, src: &Path) -> Result<String, String>
     fs::rename(src, &target).map_err(|e| e.to_string())?;
     let macro_path = target.join("macro.json");
     if macro_path.exists() {
-        if let Ok(mut json) = serde_json::from_str::<Value>(&fs::read_to_string(&macro_path).map_err(|e| e.to_string())?) {
+        if let Ok(mut json) =
+            serde_json::from_str::<Value>(&fs::read_to_string(&macro_path).map_err(|e| e.to_string())?)
+        {
             if let Some(obj) = json.as_object_mut() {
                 obj.insert("id".into(), Value::String(target_id.clone()));
             }
-            let _ = fs::write(&macro_path, serde_json::to_string_pretty(&json).unwrap_or_default());
+            let _ = fs::write(
+                &macro_path,
+                serde_json::to_string_pretty(&json).unwrap_or_default(),
+            );
         }
     }
     Ok(target_id)

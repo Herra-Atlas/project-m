@@ -358,10 +358,13 @@ fn start_ipc_listener(app: AppHandle) -> Result<(), String> {
 
     let mut candidates: Vec<PathBuf> = Vec::new();
 
-    // 1. Bundled resources (production).
+    // 1. Bundled resources (production). Tauri places every entry in
+    //    `bundle.resources` under `<resource_dir>/<key>` where `key` is the
+    //    path relative to the project root, with each `/` preserved.
     if let Ok(resource_dir) = app.path().resource_dir() {
-        candidates.push(resource_dir.join("ipc-listener").join(exe_name));
         candidates.push(resource_dir.join("tools").join("ipc-listener").join(exe_name));
+        candidates.push(resource_dir.join("ipc-listener").join(exe_name));
+        candidates.push(resource_dir.join(exe_name));
     }
 
     // 2. Adjacent to the running executable's parents (dev runs from
@@ -374,7 +377,7 @@ fn start_ipc_listener(app: AppHandle) -> Result<(), String> {
                 dir.join("..").join("..").join("tools").join("ipc-listener"),
                 dir.join("..").join("tools").join("ipc-listener"),
             ] {
-                if !candidates.contains(&ancestor) {
+                if !candidates.iter().any(|c| c.parent() == Some(ancestor.as_path())) {
                     candidates.push(ancestor.join(exe_name));
                 }
             }
@@ -390,7 +393,11 @@ fn start_ipc_listener(app: AppHandle) -> Result<(), String> {
         .into_iter()
         .find(|p| p.exists())
         .ok_or_else(|| {
-            "Could not find ipc_listener.exe. Expected under tools/ipc-listener/.".to_string()
+            format!(
+                "Could not find {}. Looked in {} candidate locations; check the install or rebuild with bundle.resources set.",
+                exe_name,
+                "tools/ipc-listener/",
+            )
         })?;
 
     log::info!("Starting AHK IPC listener: {}", chosen.display());
@@ -403,6 +410,35 @@ fn start_ipc_listener(app: AppHandle) -> Result<(), String> {
         .map_err(|e| format!("Failed to launch {}: {}", chosen.display(), e))?;
 
     Ok(())
+}
+
+/// Expose the install's data + resource directories to the frontend. Used
+/// by the "Reveal in Explorer" buttons and to surface where bundled assets
+/// (like ipc_listener.exe) live on disk.
+#[tauri::command]
+fn install_paths(app: AppHandle) -> Result<serde_json::Value, String> {
+    use serde_json::json;
+    let resource = app
+        .path()
+        .resource_dir()
+        .map_err(|e| e.to_string())?
+        .to_string_lossy()
+        .to_string();
+    let data = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .to_string_lossy()
+        .to_string();
+    let exe = std::env::current_exe()
+        .map_err(|e| e.to_string())?
+        .to_string_lossy()
+        .to_string();
+    Ok(json!({
+        "resource_dir": resource,
+        "data_dir": data,
+        "exe_path": exe,
+    }))
 }
 
 #[tauri::command]
@@ -485,7 +521,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, save_macro, delete_macro_file, list_macros, read_macro_file, read_macro_chat, write_macro_chat, append_macro_log, find_macro_by_title, import_macro_folder, get_mouse_info, check_ahk, start_ipc_listener, kilo::kilo_list_models, kilo::kilo_test_api_key, kilo::kilo_chat_stream, kilo::kilo_get_api_key, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay])
+        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, save_macro, delete_macro_file, list_macros, read_macro_file, read_macro_chat, write_macro_chat, append_macro_log, find_macro_by_title, import_macro_folder, install_paths, get_mouse_info, check_ahk, start_ipc_listener, kilo::kilo_list_models, kilo::kilo_test_api_key, kilo::kilo_chat_stream, kilo::kilo_get_api_key, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
