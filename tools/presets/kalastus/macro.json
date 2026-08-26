@@ -65,17 +65,17 @@
       "x": 640,
       "y": 160,
       "fields": {
-        "fromX": "1544",
-        "fromY": "544",
-        "toX": "1888",
-        "toY": "884",
+        "fromX": "-10",
+        "fromY": "-10",
+        "toX": "10",
+        "toY": "10",
         "color": "#FD3333",
         "rTol": "25",
         "gTol": "25",
         "bTol": "25",
         "timeoutMs": "3000",
-        "centerOnXVar": "",
-        "centerOnYVar": ""
+        "centerOnXVar": "centerX",
+        "centerOnYVar": "centerY"
       }
     },
     {

@@ -4,7 +4,8 @@ use serde_json::json;
 use tauri::Emitter;
 
 pub async fn run(node: &Node, engine: Engine) -> Result<Vec<String>, String> {
-    let message = field_str(node, "message");
+    let message_raw = field_str(node, "message");
+    let message = engine.substitute(&message_raw);
     eprintln!("[macro] {}", message);
     let _ = engine
         .app_handle

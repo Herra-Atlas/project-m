@@ -993,7 +993,7 @@ const performRunMacro = useCallback(
             <div className="mb-4">
               <h2 className="text-base font-semibold text-white">Your Macros</h2>
               <p className="mt-0.5 text-xs text-neutral-500">
-                {macros.length} saved Â· right-click a macro for actions
+                {macros.length} saved · right-click a macro for actions
               </p>
             </div>
 
@@ -1073,11 +1073,6 @@ const performRunMacro = useCallback(
                           <CardDescription className="mt-0.5 line-clamp-2 text-[11px] text-neutral-500">
                             {macro.description || `${macro.nodes.length} nodes Â· ${macro.connections.length} connections`}
                           </CardDescription>
-                          {isSelected && !isRunning && (
-                            <div className="mt-1.5 text-[10px] uppercase tracking-wider text-neutral-500">
-                              Press Start in the top right
-                            </div>
-                          )}
                         </div>
                       </div>
                     </Card>
@@ -1909,8 +1904,8 @@ function ToggleRow({
         } ${disabled ? 'cursor-not-allowed' : ''}`}
       >
         <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-neutral-100 transition-transform ${
-            checked ? 'translate-x-4' : 'left-0.5'
+          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-neutral-100 transition-transform ${
+            checked ? 'translate-x-[16px]' : ''
           }`}
         />
       </button>
