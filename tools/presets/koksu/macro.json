@@ -15,7 +15,7 @@
       "x": 80,
       "y": 240,
       "fields": {
-        "intervalMs": "700",
+        "intervalMs": "400",
         "loopCount": "0"
       }
     },
@@ -67,7 +67,7 @@
         "fromY": "0",
         "toX": "9",
         "toY": "9",
-        "color": "#FD3333",
+        "color": "#FFFFFF",
         "rTol": "25",
         "gTol": "25",
         "bTol": "25",
