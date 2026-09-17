@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod ahk_ipc;
 mod engine;
 mod input;
@@ -26,6 +28,9 @@ struct AppState {
     engine_handle: Arc<Mutex<Option<EngineHandle>>>,
     generation: std::sync::atomic::AtomicU64,
     running_macro_id: Arc<Mutex<Option<String>>>,
+    /// PID of the IPC listener child this app spawned (if any), so the
+    /// exit hook can reap it instead of leaving an orphan behind.
+    listener_pid: Arc<Mutex<Option<u32>>>,
 }
 
 struct EngineHandle {
@@ -418,12 +423,29 @@ fn start_ipc_listener(app: AppHandle) -> Result<(), String> {
                 path.display(),
                 candidates.len()
             );
-            Command::new(&path)
-                .stdin(Stdio::null())
+            let mut cmd = Command::new(&path);
+            cmd.stdin(Stdio::null())
                 .stdout(Stdio::null())
-                .stderr(Stdio::null())
+                .stderr(Stdio::null());
+            // Never flash a console window for the listener child.
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(
+                    windows_sys::Win32::System::Threading::CREATE_NO_WINDOW,
+                );
+            }
+            let child = cmd
                 .spawn()
                 .map_err(|e| format!("Failed to launch {}: {}", path.display(), e))?;
+            // Remember the child PID so the app exit hook can close it
+            // even if the AHK_IPC window lookup fails for any reason.
+            let pid = child.id();
+            std::mem::forget(child);
+            if let Some(state) = app.try_state::<AppState>() {
+                *state.listener_pid.lock().unwrap() = Some(pid);
+            }
+            log::info!("AHK IPC listener spawned (pid {pid})");
             Ok(())
         }
         None => {
@@ -635,6 +657,7 @@ pub fn run() {
             engine_handle: Arc::new(Mutex::new(None)),
             generation: std::sync::atomic::AtomicU64::new(0),
             running_macro_id: Arc::new(Mutex::new(None)),
+            listener_pid: Arc::new(Mutex::new(None)),
         })
         .setup(|app| {
             // NSIS in-place upgrades can leave bundled resources staged in
@@ -673,6 +696,20 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, save_macro, delete_macro_file, list_macros, read_macro_file, read_macro_chat, write_macro_chat, append_macro_log, find_macro_by_title, import_macro_folder, import_bundled_presets, install_paths, github_repo_url, reconcile_nsis_up_dir, get_mouse_info, check_ahk, start_ipc_listener, kilo::kilo_list_models, kilo::kilo_test_api_key, kilo::kilo_chat_stream, kilo::kilo_get_api_key, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay])
+        .on_window_event(|window, event| {
+            // When the user closes Project M, also close the AHK IPC
+            // listener — whether it was spawned by the app or opened
+            // manually as a `.ahk` script — so it doesn't linger as an
+            // orphan that keeps pressing keys.
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                if let Some(state) = window.try_state::<AppState>() {
+                    if let Some(pid) = state.listener_pid.lock().unwrap().take() {
+                        crate::ahk_ipc::kill_pid(pid);
+                    }
+                }
+                crate::ahk_ipc::close_listener();
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
