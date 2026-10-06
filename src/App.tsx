@@ -1,9 +1,7 @@
-﻿import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
+﻿import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { Button, Card, CardTitle, CardDescription, Input, Modal } from './components';
 import { EditorPage } from './components/editor/EditorPage';
 import { ViewMacroModal } from './components/editor/ViewMacroModal';
-import type { AiPermissions } from './components/CreateWithAiModal';
-import { DEFAULT_AI_SYSTEM_PROMPT } from './components/ai/prompts';
 import { LogsPanel } from './components/LogsPanel';
 import { ErrorProvider, useError } from './components/ErrorProvider';
 import { useUpdater } from './components/useUpdater';
@@ -23,20 +21,14 @@ import { listen } from '@tauri-apps/api/event';
 import { caches } from './components/cache';
 import { cn } from './components/cn';
 
-const CreateWithAiModal = lazy(() =>
-  import('./components/CreateWithAiModal').then((m) => ({ default: m.CreateWithAiModal })),
-);
 import {
   Home,
   Settings,
   ChevronDown,
   Plus,
-  Upload,
   Folder,
   Sparkles,
   Eye,
-  EyeOff,
-  Bot,
   Pencil,
   Download,
   Trash2,
@@ -45,7 +37,6 @@ import {
   Square,
   Check,
   CircleHelp,
-  Wand2,
 } from 'lucide-react';
 
 type Page = 'home' | 'macros' | 'settings';
@@ -79,16 +70,8 @@ function AppInner() {
   const [forceStopKeybind, setForceStopKeybind] = useState<string>('F8');
   const [capturingKeybind, setCapturingKeybind] = useState(false);
   const [keybindError, setKeybindError] = useState<string | null>(null);
-  const [aiApiKey, setAiApiKey] = useState<string>('');
-  const [aiSystemPrompt, setAiSystemPrompt] = useState<string>('');
-  const [aiKeyDraft, setAiKeyDraft] = useState<string>('');
-  const [aiKeyEditing, setAiKeyEditing] = useState(false);
-  const [aiKeyVisible, setAiKeyVisible] = useState(false);
-  const [aiKeyTest, setAiKeyTest] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle');
-  const [aiPromptDraft, setAiPromptDraft] = useState<string>('');
-  const [aiPromptEditing, setAiPromptEditing] = useState(false);
   const [settingsTab, setSettingsTab] = useState<
-    'common' | 'advanced' | 'ai' | 'security' | 'system'
+    'common' | 'advanced' | 'security' | 'system'
   >('common');
   const [ahkPrompt, setAhkPrompt] = useState<
     | {
@@ -101,15 +84,6 @@ function AppInner() {
   const [keybindWarnPrompt, setKeybindWarnPrompt] = useState<
     (() => void | Promise<void>) | null
   >(null);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [aiPermissions, setAiPermissions] = useState<AiPermissions>({
-    allowMutations: true,
-    autoApproveSafe: false,
-  });
-  const [importPrompt, setImportPrompt] = useState<{
-    folder: string;
-    parsed: { id: string; title: string; description: string };
-  } | null>(null);
 
   // â”€â”€ Load persisted macros + window state on mount â”€â”€
   useEffect(() => {
@@ -119,19 +93,6 @@ function AppInner() {
         const settings = JSON.parse(raw || '{}');
         if (typeof settings.forceStopKeybind === 'string') {
           setForceStopKeybind(settings.forceStopKeybind);
-        }
-        if (typeof settings.kiloApiKey === 'string') {
-          setAiApiKey(settings.kiloApiKey);
-        }
-        if (typeof settings.aiSystemPrompt === 'string') {
-          setAiSystemPrompt(settings.aiSystemPrompt);
-        }
-        if (settings.aiPermissions && typeof settings.aiPermissions === 'object') {
-          const p = settings.aiPermissions as Partial<AiPermissions>;
-          setAiPermissions({
-            allowMutations: typeof p.allowMutations === 'boolean' ? p.allowMutations : true,
-            autoApproveSafe: typeof p.autoApproveSafe === 'boolean' ? p.autoApproveSafe : false,
-          });
         }
         if (settings.window) {
           const win = getCurrentWindow();
@@ -151,6 +112,7 @@ function AppInner() {
               ),
             ).catch(() => {});
           }
+          await invoke('ensure_window_on_screen').catch(() => {});
         }
       } catch {}
 
@@ -385,81 +347,6 @@ const performRunMacro = useCallback(
     await applyForceStopKeybind('');
   }, [applyForceStopKeybind]);
 
-  const applyAiApiKey = useCallback(
-    async (key: string) => {
-      setAiApiKey(key);
-      try {
-        let merged: Record<string, unknown> = { kiloApiKey: key };
-        try {
-          const raw = await invoke<string>('load_settings');
-          const parsed = JSON.parse(raw || '{}');
-          merged = { ...parsed, ...merged };
-        } catch {}
-        await invoke('save_settings', { payload: JSON.stringify(merged) });
-      } catch (err) {
-        showError(`Failed to save API key: ${err}`);
-      }
-    },
-    [showError],
-  );
-
-  const applyAiSystemPrompt = useCallback(
-    async (prompt: string) => {
-      setAiSystemPrompt(prompt);
-      try {
-        let merged: Record<string, unknown> = { aiSystemPrompt: prompt };
-        try {
-          const raw = await invoke<string>('load_settings');
-          const parsed = JSON.parse(raw || '{}');
-          merged = { ...parsed, ...merged };
-        } catch {}
-        await invoke('save_settings', { payload: JSON.stringify(merged) });
-      } catch (err) {
-        showError(`Failed to save system prompt: ${err}`);
-      }
-    },
-    [showError],
-  );
-
-  const applyAiPermissions = useCallback(
-    async (next: AiPermissions) => {
-      setAiPermissions(next);
-      try {
-        let merged: Record<string, unknown> = { aiPermissions: next };
-        try {
-          const raw = await invoke<string>('load_settings');
-          const parsed = JSON.parse(raw || '{}');
-          merged = { ...parsed, ...merged };
-        } catch {}
-        await invoke('save_settings', { payload: JSON.stringify(merged) });
-      } catch (err) {
-        showError(`Failed to save AI permissions: ${err}`);
-      }
-    },
-    [showError],
-  );
-
-  const resetAiSettings = useCallback(async () => {
-    setAiApiKey('');
-    setAiSystemPrompt('');
-    setAiPermissions({ allowMutations: true, autoApproveSafe: false });
-    try {
-      let merged: Record<string, unknown> = {
-        kiloApiKey: '',
-        aiSystemPrompt: '',
-        aiPermissions: { allowMutations: true, autoApproveSafe: false },
-      };
-      try {
-        const raw = await invoke<string>('load_settings');
-        const parsed = JSON.parse(raw || '{}');
-        merged = { ...parsed, ...merged };
-      } catch {}
-      await invoke('save_settings', { payload: JSON.stringify(merged) });
-    } catch (err) {
-      showError(`Failed to reset AI settings: ${err}`);
-    }
-  }, [showError]);
-
   // â”€â”€ Capture keybind while the user is in "Press a keyâ€¦" mode â”€â”€
   useEffect(() => {
     if (!capturingKeybind) return;
@@ -560,81 +447,47 @@ const performRunMacro = useCallback(
     setDropdownOpen(false);
   };
 
-  const handleImport = () => {
+  const handleImportJson = () => {
     setDropdownOpen(false);
     (async () => {
       try {
         const { open } = await import('@tauri-apps/plugin-dialog');
         const picked = await open({
-          directory: true,
-          multiple: false,
-          title: 'Select a macro folder to import',
+          directory: false,
+          multiple: true,
+          title: 'Select macro JSON files to import',
+          filters: [{ name: 'Macro JSON', extensions: ['json'] }],
         });
-        if (!picked) return;
-        const folder = String(picked);
-        // Peek at the folder's macro.json to know what we're importing.
-        let parsed: { id: string; title: string; description: string; nodes: unknown[]; connections: unknown[] } | null = null;
-        try {
-          const text = await invoke<string>('read_macro_file', { id: '__peek__' }).catch(() => null);
-          // Not useful — we read directly via fetch or just let the Rust
-          // command parse. Simpler: ask Rust to do the import directly and
-          // then reload the library.
-          void text;
-        } catch {}
-        // Use Rust to import. We need the user to choose Copy vs Move.
-        setImportPrompt({
-          parsed: { id: 'unknown', title: folder.split(/[\\/]/).pop() || folder, description: '' },
-          folder,
-        });
+        if (!picked || !Array.isArray(picked) || picked.length === 0) return;
+        const paths = picked.map(String);
+        let imported = 0;
+        let failed = 0;
+        for (const path of paths) {
+          try {
+            await invoke<string>('import_macro_json', { path });
+            imported++;
+          } catch {
+            failed++;
+          }
+        }
+        const macroStrings = await invoke<string[]>('list_macros');
+        const loaded: Macro[] = [];
+        for (const raw of macroStrings) {
+          try {
+            const data = JSON.parse(raw);
+            if (data && data.id) loaded.push(data as Macro);
+          } catch {}
+        }
+        setMacros(loaded);
+        if (failed === 0) {
+          showError(`Imported ${imported} macro${imported === 1 ? '' : 's'} from JSON file${imported === 1 ? '' : 's'}.`);
+        } else {
+          showError(`Imported ${imported}, failed ${failed}.`);
+        }
       } catch (err) {
-        showError(`Failed to open picker: ${err}`);
+        showError(`Failed to import JSON: ${err}`);
       }
     })();
-  };
-
-  const finalizeImportCopy = async (folder: string) => {
-    try {
-      const newId = await invoke<string>('import_macro_folder', {
-        mode: 'copy',
-        source: folder,
-      });
-      // Re-list and reload macros.
-      const macroStrings = await invoke<string[]>('list_macros');
-      const loaded: Macro[] = [];
-      for (const raw of macroStrings) {
-        try {
-          const data = JSON.parse(raw);
-          if (data && data.id) loaded.push(data as Macro);
-        } catch {}
-      }
-      setMacros(loaded);
-      const created = loaded.find((m) => m.id === newId);
-      if (created) showError(`Imported "${created.title}" as a copy.`);
-    } catch (err) {
-      showError(`Failed to copy macro: ${err}`);
-    }
-  };
-
-  const finalizeImportMove = async (folder: string) => {
-    try {
-      const newId = await invoke<string>('import_macro_folder', {
-        mode: 'move',
-        source: folder,
-      });
-      const macroStrings = await invoke<string[]>('list_macros');
-      const loaded: Macro[] = [];
-      for (const raw of macroStrings) {
-        try {
-          const data = JSON.parse(raw);
-          if (data && data.id) loaded.push(data as Macro);
-        } catch {}
-      }
-      setMacros(loaded);
-      const created = loaded.find((m) => m.id === newId);
-      if (created) showError(`Moved "${created.title}" into your library.`);
-    } catch (err) {
-      showError(`Failed to move macro: ${err}`);
-    }
   };
 
   const handleContextMenu = (e: React.MouseEvent, macroId: string) => {
@@ -661,71 +514,6 @@ const performRunMacro = useCallback(
     }
     handleStartSelected();
   };
-
-  const handleAiCreate = useCallback((macro: Macro) => {
-    const stamped: Macro = { ...macro, madeByAi: true };
-    setMacros((prev) => {
-      const without = prev.filter((m) => m.id !== stamped.id);
-      return [stamped, ...without];
-    });
-    setEditingMacro(stamped);
-    setAiModalOpen(false);
-  }, []);
-
-  const handleAiEdit = useCallback(
-    (
-      id: string,
-      body: {
-        title?: string;
-        description?: string;
-        nodes?: import('./components/editor/types').EditorNode[];
-        connections?: import('./components/editor/types').Connection[];
-      },
-    ) => {
-      setMacros((prev) =>
-        prev.map((m) =>
-          m.id === id
-            ? {
-                ...m,
-                title: body.title ?? m.title,
-                description: body.description ?? m.description,
-                nodes: body.nodes ?? m.nodes,
-                connections: body.connections ?? m.connections,
-              }
-            : m,
-        ),
-      );
-    },
-    [],
-  );
-
-  const handleAiRename = useCallback((id: string, title: string) => {
-    setMacros((prev) => prev.map((m) => (m.id === id ? { ...m, title } : m)));
-  }, []);
-
-  const handleAiDelete = useCallback(
-    (id: string) => {
-      setMacros((prev) => prev.filter((m) => m.id !== id));
-      invoke('delete_macro_file', { id }).catch((err) =>
-        showError(`Failed to delete macro on disk: ${err}`),
-      );
-    },
-    [showError],
-  );
-
-  const handleAiDuplicate = useCallback((id: string, newTitle?: string) => {
-    setMacros((prev) => {
-      const src = prev.find((m) => m.id === id);
-      if (!src) return prev;
-      const dup: Macro = {
-        ...src,
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        title: newTitle || `${src.title} (copy)`,
-        madeByAi: true,
-      };
-      return [dup, ...prev];
-    });
-  }, []);
 
   const setMacroIcon = (id: string, icon: MacroIconKey | typeof AUTO_ICON_KEY) => {
     setMacros((prev) =>
@@ -854,23 +642,13 @@ const performRunMacro = useCallback(
                     <Sparkles size={15} className="text-neutral-500" />
                     Create
                   </button>
-                  <button
-                    onClick={() => {
-                      setDropdownOpen(false);
-                      setAiModalOpen(true);
-                    }}
-                    className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-neutral-200 transition-colors hover:bg-neutral-800"
-                  >
-                    <Wand2 size={15} className="text-neutral-500" />
-                    Create with AI
-                  </button>
                   <div className="mx-3 border-t border-neutral-800" />
                   <button
-                    onClick={handleImport}
+                    onClick={handleImportJson}
                     className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm text-neutral-200 transition-colors hover:bg-neutral-800"
                   >
-                    <Upload size={15} className="text-neutral-500" />
-                    Import
+                    <Folder size={15} className="text-neutral-500" />
+                    Import JSON file
                   </button>
                 </div>
               )}
@@ -1046,17 +824,8 @@ const performRunMacro = useCallback(
                                       ? 'AHK IPC listener (AHK_IPC) is running'
                                       : 'AHK IPC listener not found â€” start the .ahk script'
                                   }
-                                >
+                                 >
                                   .ahk
-                                </span>
-                              )}
-                              {macro.madeByAi && (
-                                <span
-                                  className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-neutral-700 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider font-mono text-neutral-400"
-                                  title="Created by AI"
-                                >
-                                  <Sparkles size={9} />
-                                  AI
                                 </span>
                               )}
                             </CardTitle>
@@ -1211,11 +980,6 @@ const performRunMacro = useCallback(
                 label="Advanced"
               />
               <SettingsTab
-                active={settingsTab === 'ai'}
-                onClick={() => setSettingsTab('ai')}
-                label="AI"
-              />
-              <SettingsTab
                 active={settingsTab === 'security'}
                 onClick={() => setSettingsTab('security')}
                 label="Security"
@@ -1294,250 +1058,6 @@ const performRunMacro = useCallback(
               </Card>
             )}
 
-            {settingsTab === 'ai' && (
-              <Card>
-                <CardTitle className="flex items-center gap-2 text-[13px]">
-                  <Bot size={14} className="text-green-500" />
-                  AI
-                </CardTitle>
-                <CardDescription className="mt-1">
-                  Used by the "Create with AI" macro builder. Stored in settings.json; get a key at kilo.ai.
-                </CardDescription>
-
-                <div className="mt-4">
-                  <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                    Kilo API key
-                  </div>
-
-                  {!aiKeyEditing ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <div className="inline-flex h-9 min-w-[180px] items-center rounded-md border border-white/10 bg-neutral-800 px-3 text-sm font-mono text-neutral-200">
-                        {aiApiKey ? `${aiApiKey.slice(0, 4)}…${aiApiKey.slice(-3)}` : 'Not set'}
-                      </div>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          setAiKeyDraft(aiApiKey);
-                          setAiKeyEditing(true);
-                          setAiKeyTest('idle');
-                        }}
-                      >
-                        {aiApiKey ? 'Change' : 'Set'}
-                      </Button>
-                      {aiApiKey && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => void applyAiApiKey('')}
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type={aiKeyVisible ? 'text' : 'password'}
-                          value={aiKeyDraft}
-                          onChange={(e) => setAiKeyDraft(e.target.value)}
-                          placeholder="kilo_…"
-                          className="flex-1 font-mono"
-                        />
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setAiKeyVisible((v) => !v)}
-                          title={aiKeyVisible ? 'Hide' : 'Show'}
-                        >
-                          {aiKeyVisible ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </Button>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          disabled={!aiKeyDraft.trim()}
-                          onClick={async () => {
-                            await applyAiApiKey(aiKeyDraft.trim());
-                            setAiKeyEditing(false);
-                          }}
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          loading={aiKeyTest === 'testing'}
-                          disabled={!aiKeyDraft.trim() || aiKeyTest === 'testing'}
-                          onClick={async () => {
-                            setAiKeyTest('testing');
-                            try {
-                              await invoke('kilo_test_api_key', {
-                                req: {
-                                  apiKey: aiKeyDraft.trim(),
-                                  model: 'openrouter/free',
-                                  messages: [],
-                                },
-                              });
-                              setAiKeyTest('ok');
-                            } catch {
-                              setAiKeyTest('fail');
-                            }
-                          }}
-                        >
-                          Test
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setAiKeyEditing(false);
-                            setAiKeyTest('idle');
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        {aiKeyTest === 'ok' && (
-                          <span className="text-xs text-green-400">✓ Key works</span>
-                        )}
-                        {aiKeyTest === 'fail' && (
-                          <span className="text-xs text-red-400">✗ Key rejected</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-6 border-t border-white/5 pt-4">
-                  <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                    System prompt
-                  </div>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Sent to the model on every chat. Controls output format, node registry,
-                    and style guidelines.
-                  </p>
-
-                  {!aiPromptEditing ? (
-                    <div className="mt-3 flex items-start gap-2">
-                      <pre className="flex-1 max-h-40 overflow-y-auto whitespace-pre-wrap rounded-md border border-white/10 bg-neutral-950/40 px-3 py-2 text-[11px] font-mono leading-relaxed text-neutral-300">
-                        {aiSystemPrompt || DEFAULT_AI_SYSTEM_PROMPT}
-                      </pre>
-                      <div className="flex flex-col gap-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => {
-                            setAiPromptDraft(aiSystemPrompt);
-                            setAiPromptEditing(true);
-                          }}
-                        >
-                          {aiSystemPrompt ? 'Edit' : 'Edit default'}
-                        </Button>
-                        {aiSystemPrompt && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              void applyAiSystemPrompt('');
-                            }}
-                          >
-                            Reset
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-3 space-y-2">
-                      <textarea
-                        value={aiPromptDraft}
-                        onChange={(e) => setAiPromptDraft(e.target.value)}
-                        rows={16}
-                        spellCheck={false}
-                        className="w-full resize-y rounded-md border border-white/10 bg-neutral-950/40 px-3 py-2 font-mono text-[11px] leading-relaxed text-neutral-200 focus:border-green-500/60 focus:outline-none focus:ring-1 focus:ring-green-500/30"
-                      />
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={async () => {
-                            await applyAiSystemPrompt(aiPromptDraft);
-                            setAiPromptEditing(false);
-                          }}
-                        >
-                          Save
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setAiPromptDraft(DEFAULT_AI_SYSTEM_PROMPT);
-                          }}
-                        >
-                          Reset to default
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setAiPromptEditing(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <span className="ml-auto text-[10px] text-neutral-600">
-                          {aiPromptDraft.length.toLocaleString()} chars
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-6 border-t border-white/5 pt-4">
-                  <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                    Permissions
-                  </div>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Controls what the AI is allowed to do to your macro library.
-                  </p>
-
-                  <div className="mt-3 flex flex-col gap-2">
-                    <ToggleRow
-                      label="Allow AI to mutate your library"
-                      description="Edit, rename, duplicate, and delete existing macros. Off = AI can only create new ones."
-                      checked={aiPermissions.allowMutations}
-                      onChange={(v) => void applyAiPermissions({ ...aiPermissions, allowMutations: v })}
-                    />
-                    <ToggleRow
-                      label="Auto-approve safe edits"
-                      description="When on, edit / rename / duplicate skip the confirmation card. Deletes ALWAYS require approval."
-                      checked={aiPermissions.autoApproveSafe}
-                      disabled={!aiPermissions.allowMutations}
-                      onChange={(v) => void applyAiPermissions({ ...aiPermissions, autoApproveSafe: v })}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 border-t border-white/5 pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Reset
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        if (confirm('Reset all AI settings (API key, system prompt, permissions) to defaults?')) {
-                          void resetAiSettings();
-                        }
-                      }}
-                    >
-                      Reset AI settings
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            )}
-
             {settingsTab === 'security' && (
               <Card>
                 <CardTitle className="text-[13px]">Security</CardTitle>
@@ -1603,63 +1123,6 @@ const performRunMacro = useCallback(
                       Open releases page
                     </Button>
                   </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between gap-2 rounded-md border border-white/5 bg-neutral-950/40 px-3 py-2">
-                  <div className="min-w-0">
-                    <div className="text-[12px] font-medium text-neutral-200">Bundled presets</div>
-                    <div className="mt-0.5 text-[11px] text-neutral-500">
-                      Sample macros that ship with the installer. Import skips any whose id already exists in your library.
-                    </div>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        const result = await invoke<{
-                          imported: string[];
-                          skipped: string[];
-                          failed: string[];
-                          source: string;
-                        }>('import_bundled_presets');
-                        // Reload library so the new macros appear immediately.
-                        const macroStrings = await invoke<string[]>('list_macros');
-                        const loaded: Macro[] = [];
-                        for (const raw of macroStrings) {
-                          try {
-                            const data = JSON.parse(raw);
-                            if (data && data.id) loaded.push(data as Macro);
-                          } catch {}
-                        }
-                        setMacros(loaded);
-                        const parts: string[] = [];
-                        if (result.imported.length > 0) {
-                          parts.push(`Imported ${result.imported.length}: ${result.imported.join(', ')}.`);
-                        }
-                        if (result.skipped.length > 0) {
-                          parts.push(`Skipped (already present): ${result.skipped.join(', ')}.`);
-                        }
-                        if (result.failed.length > 0) {
-                          parts.push(`Failed: ${result.failed.join('; ')}.`);
-                        }
-                        if (parts.length === 0) {
-                          toast.error(
-                            `No presets found at ${result.source}.\nReinstall the app or import macros manually.`,
-                            'Bundled presets missing',
-                          );
-                        } else if (result.failed.length > 0) {
-                          toast.error(parts.join('\n'), 'Imported with errors');
-                        } else {
-                          toast.success(parts.join('\n'), 'Presets imported');
-                        }
-                      } catch (err) {
-                        toast.error(`Failed to import presets: ${err}`);
-                      }
-                    }}
-                  >
-                    Import bundled presets
-                  </Button>
                 </div>
               </Card>
             )}
@@ -1759,22 +1222,6 @@ const performRunMacro = useCallback(
         }
       />
 
-      <Suspense fallback={null}>
-        <CreateWithAiModal
-          open={aiModalOpen}
-          apiKey={aiApiKey}
-          systemPrompt={aiSystemPrompt}
-          macros={macros}
-          permissions={aiPermissions}
-          onClose={() => setAiModalOpen(false)}
-          onCreateMacro={handleAiCreate}
-          onApplyEdit={handleAiEdit}
-          onApplyRename={handleAiRename}
-          onApplyDelete={handleAiDelete}
-          onApplyDuplicate={handleAiDuplicate}
-        />
-      </Suspense>
-
       <ViewMacroModal
         open={!!viewingMacro}
         macro={viewingMacro ?? { id: '', title: '', description: '', nodes: [], connections: [] }}
@@ -1791,59 +1238,6 @@ const performRunMacro = useCallback(
         onClear={() => setLogs([])}
         onStop={handleStopMacro}
       />
-
-      <Modal
-        open={!!importPrompt}
-        onClose={() => setImportPrompt(null)}
-        title="Import macro folder"
-        size="sm"
-        description={
-          importPrompt
-            ? `Import "${importPrompt.parsed.title}" into your library?`
-            : ''
-        }
-        footer={
-          <>
-            <Button variant="ghost" size="sm" onClick={() => setImportPrompt(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={async () => {
-                const folder = importPrompt?.folder;
-                setImportPrompt(null);
-                if (folder) await finalizeImportMove(folder);
-              }}
-            >
-              Move (no copy)
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={async () => {
-                const folder = importPrompt?.folder;
-                setImportPrompt(null);
-                if (folder) await finalizeImportCopy(folder);
-              }}
-            >
-              Copy
-            </Button>
-          </>
-        }
-      >
-        <div className="text-sm text-neutral-300 space-y-2">
-          <p>
-            <strong>Copy</strong> duplicates the folder into your local library
-            and keeps the source intact. <strong>Move</strong> transfers the
-            folder without duplication. Either way, the folder will be renamed
-            if an id collision exists.
-          </p>
-          {importPrompt?.parsed.description && (
-            <p className="text-xs text-neutral-500">{importPrompt.parsed.description}</p>
-          )}
-        </div>
-      </Modal>
     </div>
   );
 }

@@ -258,16 +258,8 @@ export function invokeErrorMessage(err: unknown): string {
 /**
  * Catalog of Tauri-backed caches. Components import the relevant cache
  * instance; the same fetcher is shared so duplicate calls deduplicate.
- *
- * To register a new cache: add it here, then call
- *   `caches.kiloModels.get()` etc. from any component.
  */
 export const caches = {
-  /** The Kilo /models catalog. Stale after 5 minutes. */
-  kiloModels: createInvokeCache<[], unknown[]>(
-    async () => invoke('kilo_list_models') as Promise<unknown[]>,
-    { staleMs: 5 * 60_000 },
-  ),
   /** Parsed settings.json. Stale after 30s. */
   settings: createInvokeCache<[], Record<string, unknown>>(
     async () => {

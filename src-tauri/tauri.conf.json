@@ -29,8 +29,8 @@
     "targets": ["nsis"],
     "createUpdaterArtifacts": true,
     "category": "Productivity",
-    "shortDescription": "Visual macro builder with AI assistant",
-    "longDescription": "Project M is a node-graph macro builder for Windows. Design automations visually, share them, and generate them from natural language using a chat-completion AI of your choice.",
+    "shortDescription": "Visual macro builder for Windows",
+    "longDescription": "Project M is a node-graph macro builder for Windows. Design automations visually and run them with a single click.",
     "publisher": "Herra-Atlas",
     "icon": [
       "icons/32x32.png",
@@ -41,8 +41,7 @@
     ],
     "resources": [
       "../tools/ipc-listener/ipc_listener.exe",
-      "../tools/ipc-listener/ipc_listener.ahk",
-      "../tools/presets"
+      "../tools/ipc-listener/ipc_listener.ahk"
     ]
   },
   "plugins": {

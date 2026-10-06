@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { Trash2, Variable, Lock, Check, Sparkles } from 'lucide-react';
+import { Trash2, Variable, Lock, Check } from 'lucide-react';
 import type { EditorNode, Macro } from './types';
 import {
   MACRO_ICON_OPTIONS,
@@ -34,7 +34,6 @@ export function ViewMacroModal({ open, macro, onClose, onSave }: ViewMacroModalP
   const [description, setDescription] = useState(macro.description);
   const [variables, setVariables] = useState<VariableRow[]>([]);
   const [icon, setIcon] = useState<MacroIconKey | typeof AUTO_ICON_KEY>(AUTO_ICON_KEY);
-  const [madeByAi, setMadeByAi] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -51,7 +50,6 @@ export function ViewMacroModal({ open, macro, onClose, onSave }: ViewMacroModalP
         })),
     );
     setIcon((macro.icon as MacroIconKey) ?? AUTO_ICON_KEY);
-    setMadeByAi(macro.madeByAi ?? false);
   }, [open, macro.id]);
 
   const addVariable = () => {
@@ -96,11 +94,6 @@ export function ViewMacroModal({ open, macro, onClose, onSave }: ViewMacroModalP
       delete updated.icon;
     } else {
       updated.icon = icon;
-    }
-    if (madeByAi) {
-      updated.madeByAi = true;
-    } else {
-      delete updated.madeByAi;
     }
     onSave(updated);
   };
@@ -188,25 +181,6 @@ export function ViewMacroModal({ open, macro, onClose, onSave }: ViewMacroModalP
             ))}
           </div>
         </div>
-
-        <label className="flex items-center gap-3 cursor-pointer select-none">
-          <span
-            className={`relative inline-block h-5 w-9 rounded-full transition-colors ${
-              madeByAi ? 'bg-neutral-500' : 'bg-neutral-800'
-            }`}
-            onClick={() => setMadeByAi((v) => !v)}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-neutral-200 transition-transform ${
-                madeByAi ? 'translate-x-4' : ''
-              }`}
-            />
-          </span>
-          <span className="flex items-center gap-1.5 text-[12px] text-neutral-300">
-            <Sparkles size={13} className={madeByAi ? 'text-neutral-300' : 'text-neutral-600'} />
-            Created with AI
-          </span>
-        </label>
 
         <div className="flex items-center gap-2">
           <Variable size={14} className="text-lime-400" />

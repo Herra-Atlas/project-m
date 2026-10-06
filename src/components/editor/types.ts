@@ -51,7 +51,6 @@ export interface Macro {
   nodes: EditorNode[];
   connections: Connection[];
   icon?: string;
-  madeByAi?: boolean;
 }
 
 export interface MacroData {

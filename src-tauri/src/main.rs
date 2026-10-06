@@ -3,7 +3,6 @@
 mod ahk_ipc;
 mod engine;
 mod input;
-mod kilo;
 mod macro_data;
 mod macros_fs;
 mod nodes;
@@ -276,38 +275,6 @@ fn read_macro_file(id: String, app: AppHandle) -> Result<Option<String>, String>
 }
 
 #[tauri::command]
-fn read_macro_chat(id: String, app: AppHandle) -> Result<String, String> {
-    macros_fs::read_chat(&app, &id)
-}
-
-#[tauri::command]
-fn write_macro_chat(id: String, payload: String, app: AppHandle) -> Result<(), String> {
-    macros_fs::write_chat(&app, &id, &payload)
-}
-
-#[tauri::command]
-fn append_macro_log(id: String, line: String, app: AppHandle) -> Result<(), String> {
-    macros_fs::append_log(&app, &id, &line)
-}
-
-#[tauri::command]
-fn find_macro_by_title(title: String, app: AppHandle) -> Result<Option<(String, String)>, String> {
-    macros_fs::find_macro_by_title(&app, &title)
-}
-
-#[tauri::command]
-fn import_macro_folder(mode: String, source: String, app: AppHandle) -> Result<String, String> {
-    let src = std::path::PathBuf::from(source);
-    if !src.is_dir() {
-        return Err(format!("source is not a folder: {}", src.display()));
-    }
-    match mode.as_str() {
-        "move" => macros_fs::import_move(&app, &src),
-        _ => macros_fs::import_copy(&app, &src),
-    }
-}
-
-#[tauri::command]
 fn get_mouse_info() -> Result<(i32, i32, String), String> {
     unsafe {
         use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
@@ -497,11 +464,6 @@ fn install_paths(app: AppHandle) -> Result<serde_json::Value, String> {
     }))
 }
 
-#[tauri::command]
-fn import_bundled_presets(app: AppHandle) -> Result<macros_fs::PresetImportResult, String> {
-    macros_fs::import_bundled_presets(&app)
-}
-
 /// Returns the canonical URL of the GitHub repository that hosts updates.
 /// Used by the updater UI as a fallback when the in-app install can't
 /// run (e.g. signature mismatch, network error).
@@ -613,6 +575,88 @@ fn hide_region_overlay() {
     overlay::hide_overlay();
 }
 
+#[tauri::command]
+fn ensure_window_on_screen(app: AppHandle) -> Result<(), String> {
+    let window = match app.get_webview_window("main") {
+        Some(w) => w,
+        None => return Ok(()),
+    };
+    unsafe {
+        use windows_sys::Win32::UI::WindowsAndMessaging::*;
+        use windows_sys::Win32::Graphics::Gdi::*;
+        use windows_sys::Win32::Foundation::*;
+
+        let hwnd = match window.hwnd() {
+            Ok(h) => h.0,
+            Err(_) => return Ok(()),
+        };
+
+        let hmon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONULL);
+        if hmon.is_null() {
+            let mut rect = std::mem::zeroed();
+            if GetWindowRect(hwnd, &mut rect) == 0 {
+                return Ok(());
+            }
+            let width = (rect.right - rect.left).max(320);
+            let height = (rect.bottom - rect.top).max(240);
+            let screen_w = GetSystemMetrics(SM_CXSCREEN).max(320);
+            let screen_h = GetSystemMetrics(SM_CYSCREEN).max(240);
+            let x = ((screen_w - width) / 2).max(0);
+            let y = ((screen_h - height) / 2).max(0);
+            let _ = SetWindowPos(hwnd, HWND_TOP, x, y, width, height, SWP_SHOWWINDOW);
+            return Ok(());
+        }
+
+        let mut rect = std::mem::zeroed();
+        if GetWindowRect(hwnd, &mut rect) == 0 {
+            return Ok(());
+        }
+        let center_x = (rect.left + rect.right) / 2;
+        let center_y = (rect.top + rect.bottom) / 2;
+        let hmon2 = MonitorFromPoint(POINT { x: center_x, y: center_y }, MONITOR_DEFAULTTONULL);
+        if hmon2.is_null() {
+            let width = (rect.right - rect.left).max(320);
+            let height = (rect.bottom - rect.top).max(240);
+            let screen_w = GetSystemMetrics(SM_CXSCREEN).max(320);
+            let screen_h = GetSystemMetrics(SM_CYSCREEN).max(240);
+            let x = ((screen_w - width) / 2).max(0);
+            let y = ((screen_h - height) / 2).max(0);
+            let _ = SetWindowPos(hwnd, HWND_TOP, x, y, width, height, SWP_SHOWWINDOW);
+        }
+
+        Ok(())
+    }
+}
+
+#[tauri::command]
+fn import_macro_json(path: String, app: AppHandle) -> Result<String, String> {
+    let src = std::path::PathBuf::from(path);
+    if !src.is_file() {
+        return Err(format!("not a file: {}", src.display()));
+    }
+    let raw = std::fs::read_to_string(&src).map_err(|e| format!("failed to read {}: {e}", src.display()))?;
+    let mut parsed: serde_json::Value = serde_json::from_str(&raw)
+        .map_err(|e| format!("invalid JSON: {e}"))?;
+    let base_id = parsed
+        .get("id")
+        .and_then(|x| x.as_str())
+        .ok_or_else(|| "macro JSON is missing required `id` field".to_string())?
+        .to_string();
+    let target_id = macros_fs::next_unique_id(&app, &base_id);
+    let target = macros_fs::macro_dir(&app, &target_id)?;
+    if target.exists() {
+        return Err(format!("target {} already exists", target.display()));
+    }
+    std::fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+    let macro_path = target.join("macro.json");
+    if let Some(mut obj) = parsed.as_object_mut() {
+        obj.insert("id".into(), serde_json::Value::String(target_id.clone()));
+    }
+    std::fs::write(&macro_path, serde_json::to_string_pretty(&parsed).unwrap_or_default())
+        .map_err(|e| e.to_string())?;
+    Ok(target_id)
+}
+
 /// Re-register the Force Stop global hotkey from a stored settings string on
 /// app launch. Failures are logged but non-fatal — the rest of the app still
 /// works without a keybind. Must be called after AppState has been managed.
@@ -695,7 +739,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, save_macro, delete_macro_file, list_macros, read_macro_file, read_macro_chat, write_macro_chat, append_macro_log, find_macro_by_title, import_macro_folder, import_bundled_presets, install_paths, github_repo_url, reconcile_nsis_up_dir, get_mouse_info, check_ahk, start_ipc_listener, kilo::kilo_list_models, kilo::kilo_test_api_key, kilo::kilo_chat_stream, kilo::kilo_get_api_key, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay])
+        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, save_macro, delete_macro_file, list_macros, read_macro_file, install_paths, github_repo_url, reconcile_nsis_up_dir, get_mouse_info, check_ahk, start_ipc_listener, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay, ensure_window_on_screen, import_macro_json])
         .on_window_event(|window, event| {
             // When the user closes Project M, also close the AHK IPC
             // listener — whether it was spawned by the app or opened

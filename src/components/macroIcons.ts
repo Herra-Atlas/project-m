@@ -64,7 +64,6 @@ export const MACRO_ICON_MAP: Record<MacroIconKey, LucideIcon> = Object.fromEntri
 export const AUTO_ICON_KEY = 'auto' as const;
 
 export function detectMacroIcon(macro: Macro): MacroIconKey {
-  if (macro.madeByAi) return 'sparkles';
   let mouse = 0;
   let keyboard = 0;
   let other = 0;
