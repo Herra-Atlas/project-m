@@ -22,6 +22,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 use engine::Engine;
 use macro_data::MacroData;
+use crate::macros_fs::chrono_like_now;
 
 struct AppState {
     engine_handle: Arc<Mutex<Option<EngineHandle>>>,
@@ -266,7 +267,13 @@ fn delete_macro_file(id: String, app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn list_macros(app: AppHandle) -> Result<Vec<String>, String> {
-    macros_fs::list_macros(&app)
+    log::info!("[list_macros] reloading macro library");
+    let out = macros_fs::list_macros(&app);
+    match &out {
+        Ok(list) => log::info!("[list_macros] found {} macros", list.len()),
+        Err(e) => log::error!("[list_macros] error: {e}"),
+    }
+    out
 }
 
 #[tauri::command]
@@ -630,30 +637,61 @@ fn ensure_window_on_screen(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn import_macro_json(path: String, app: AppHandle) -> Result<String, String> {
+    log::info!("[import_macro_json] start path={}", path);
     let src = std::path::PathBuf::from(path);
     if !src.is_file() {
+        log::error!("[import_macro_json] not a file: {}", src.display());
         return Err(format!("not a file: {}", src.display()));
     }
-    let raw = std::fs::read_to_string(&src).map_err(|e| format!("failed to read {}: {e}", src.display()))?;
-    let mut parsed: serde_json::Value = serde_json::from_str(&raw)
-        .map_err(|e| format!("invalid JSON: {e}"))?;
+    let raw = std::fs::read_to_string(&src).map_err(|e| {
+        log::error!("[import_macro_json] read error: {e}");
+        format!("failed to read {}: {e}", src.display())
+    })?;
+    let mut parsed: serde_json::Value = serde_json::from_str(&raw).map_err(|e| {
+        log::error!("[import_macro_json] invalid JSON: {e}");
+        format!("invalid JSON: {e}")
+    })?;
+    log::info!(
+        "[import_macro_json] top-level type={} keys={:?}",
+        match &parsed {
+            serde_json::Value::Object(_) => "object",
+            _ => "other",
+        },
+        parsed.as_object().map(|o| o.keys().collect::<Vec<_>>()).unwrap_or_default()
+    );
     let base_id = parsed
         .get("id")
         .and_then(|x| x.as_str())
-        .ok_or_else(|| "macro JSON is missing required `id` field".to_string())?
-        .to_string();
+        .map(|s| {
+            log::info!("[import_macro_json] found id={}", s);
+            s.to_string()
+        })
+        .unwrap_or_else(|| {
+            let generated = format!("imported-{}", chrono_like_now());
+            log::warn!("[import_macro_json] missing id, generated={}", generated);
+            generated
+        });
     let target_id = macros_fs::next_unique_id(&app, &base_id);
+    log::info!("[import_macro_json] target_id={}", target_id);
     let target = macros_fs::macro_dir(&app, &target_id)?;
     if target.exists() {
+        log::error!("[import_macro_json] target already exists: {}", target.display());
         return Err(format!("target {} already exists", target.display()));
     }
-    std::fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&target).map_err(|e| {
+        log::error!("[import_macro_json] create_dir error: {e}");
+        e.to_string()
+    })?;
     let macro_path = target.join("macro.json");
     if let Some(mut obj) = parsed.as_object_mut() {
         obj.insert("id".into(), serde_json::Value::String(target_id.clone()));
     }
     std::fs::write(&macro_path, serde_json::to_string_pretty(&parsed).unwrap_or_default())
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            log::error!("[import_macro_json] write error: {e}");
+            e.to_string()
+        })?;
+    log::info!("[import_macro_json] success target={}", macro_path.display());
     Ok(target_id)
 }
 

@@ -153,7 +153,7 @@ pub fn next_unique_id(app: &tauri::AppHandle, base: &str) -> String {
     format!("{}-{}", base, chrono_like_now())
 }
 
-fn chrono_like_now() -> u64 {
+pub fn chrono_like_now() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)

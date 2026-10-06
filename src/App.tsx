@@ -458,18 +458,24 @@ const performRunMacro = useCallback(
           title: 'Select macro JSON files to import',
           filters: [{ name: 'Macro JSON', extensions: ['json'] }],
         });
-        if (!picked || !Array.isArray(picked) || picked.length === 0) return;
-        const paths = picked.map(String);
+        console.log('[import] dialog picked:', picked);
+        if (!picked) return;
+        const paths = Array.isArray(picked) ? picked.map(String) : [String(picked)];
+        console.log('[import] paths to import:', paths);
         let imported = 0;
         let failed = 0;
         for (const path of paths) {
           try {
-            await invoke<string>('import_macro_json', { path });
+            console.log('[import] importing:', path);
+            const newId = await invoke<string>('import_macro_json', { path });
+            console.log('[import] success, newId:', newId);
             imported++;
-          } catch {
+          } catch (err) {
+            console.error('[import] failed for', path, err);
             failed++;
           }
         }
+        console.log('[import] done, imported:', imported, 'failed:', failed);
         const macroStrings = await invoke<string[]>('list_macros');
         const loaded: Macro[] = [];
         for (const raw of macroStrings) {
@@ -478,6 +484,7 @@ const performRunMacro = useCallback(
             if (data && data.id) loaded.push(data as Macro);
           } catch {}
         }
+        console.log('[import] reloaded macros:', loaded.length);
         setMacros(loaded);
         if (failed === 0) {
           showError(`Imported ${imported} macro${imported === 1 ? '' : 's'} from JSON file${imported === 1 ? '' : 's'}.`);
@@ -485,6 +492,7 @@ const performRunMacro = useCallback(
           showError(`Imported ${imported}, failed ${failed}.`);
         }
       } catch (err) {
+        console.error('[import] dialog/flow error:', err);
         showError(`Failed to import JSON: ${err}`);
       }
     })();
