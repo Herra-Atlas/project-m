@@ -4,6 +4,7 @@ mod ahk_ipc;
 mod engine;
 mod input;
 mod macro_data;
+mod mcp_server;
 mod macros_fs;
 mod nodes;
 mod overlay;
@@ -253,6 +254,20 @@ fn load_settings(app: AppHandle) -> Result<String, String> {
         return Ok("{}".to_string());
     }
     fs::read_to_string(file_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn mcp_get_enabled(app: AppHandle) -> Result<bool, String> {
+    Ok(mcp_server::is_running())
+}
+
+#[tauri::command]
+fn mcp_set_enabled(enabled: bool, app: AppHandle) -> Result<(), String> {
+    if enabled {
+        mcp_server::start(app)
+    } else {
+        mcp_server::stop(app)
+    }
 }
 
 #[tauri::command]
@@ -752,6 +767,9 @@ pub fn run() {
                 log::warn!("NSIS reconcile failed: {e}");
             }
 
+            let mcp_handle = app.handle().clone();
+            mcp_server::spawn(mcp_handle);
+
             // Re-register the saved Force Stop keybind on launch so the user
             // doesn't have to reconfigure it every restart. Failures are
             // logged but non-fatal — the app still works without a keybind.
@@ -777,7 +795,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, save_macro, delete_macro_file, list_macros, read_macro_file, install_paths, github_repo_url, reconcile_nsis_up_dir, get_mouse_info, check_ahk, start_ipc_listener, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay, ensure_window_on_screen, import_macro_json])
+        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, mcp_get_enabled, mcp_set_enabled, save_macro, delete_macro_file, list_macros, read_macro_file, install_paths, github_repo_url, reconcile_nsis_up_dir, get_mouse_info, check_ahk, start_ipc_listener, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay, ensure_window_on_screen, import_macro_json])
         .on_window_event(|window, event| {
             // When the user closes Project M, also close the AHK IPC
             // listener — whether it was spawned by the app or opened

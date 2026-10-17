@@ -84,6 +84,22 @@ function AppInner() {
   const [keybindWarnPrompt, setKeybindWarnPrompt] = useState<
     (() => void | Promise<void>) | null
   >(null);
+  const [mcpEnabled, setMcpEnabled] = useState(true);
+  const [mcpRunning, setMcpRunning] = useState(false);
+  const [mcpBusy, setMcpBusy] = useState(false);
+
+  const toggleMcp = async (on: boolean) => {
+    setMcpBusy(true);
+    try {
+      await invoke('mcp_set_enabled', { enabled: on });
+      setMcpEnabled(on);
+      setMcpRunning(on);
+    } catch (err) {
+      console.error('Failed to toggle MCP server:', err);
+    } finally {
+      setMcpBusy(false);
+    }
+  };
 
   // â”€â”€ Load persisted macros + window state on mount â”€â”€
   useEffect(() => {
@@ -94,6 +110,12 @@ function AppInner() {
         if (typeof settings.forceStopKeybind === 'string') {
           setForceStopKeybind(settings.forceStopKeybind);
         }
+        if (typeof settings.mcpEnabled === 'boolean') {
+          setMcpEnabled(settings.mcpEnabled);
+        }
+        try {
+          setMcpRunning(await invoke<boolean>('mcp_get_enabled'));
+        } catch {}
         if (settings.window) {
           const win = getCurrentWindow();
           if (settings.window.width && settings.window.height) {
@@ -201,6 +223,53 @@ function AppInner() {
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
+    };
+  }, []);
+  // â”€â”€ MCP / external macro changes: re-read from disk and merge â”€â”€
+  // Emitted by the MCP server after create/save/delete, so macros built by an
+  // agent show up in the library without a manual reload (Ctrl-R).
+  useEffect(() => {
+    let reloading = false;
+    const reloadFromDisk = async (reason: string) => {
+      if (reloading) return;
+      reloading = true;
+      try {
+        const macroStrings = await invoke<string[]>('list_macros');
+        const fromDisk: Macro[] = [];
+        for (const raw of macroStrings) {
+          try {
+            const data = JSON.parse(raw);
+            if (data && data.id) fromDisk.push(data as Macro);
+          } catch {}
+        }
+        const diskIds = new Set(fromDisk.map((m) => m.id));
+        setMacros((prev) => {
+          // Keep local copies for macros still on disk (they may hold unsaved
+          // or in-progress user edits), drop macros deleted externally, and
+          // add macros created externally.
+          const kept = prev.filter((m) => diskIds.has(m.id));
+          const keptIds = new Set(kept.map((m) => m.id));
+          const added = fromDisk.filter((m) => !keptIds.has(m.id));
+          const merged = [...kept, ...added];
+          console.log(
+            `[macros-changed:${reason}] disk=${fromDisk.length} local=${prev.length} merged=${merged.length}`,
+          );
+          return merged;
+        });
+      } catch (err) {
+        console.error('[macros-changed] failed to reload macros:', err);
+      } finally {
+        reloading = false;
+      }
+    };
+    const unlisten = listen<{ id: string; action: string }>(
+      'macros-changed',
+      (event) => {
+        void reloadFromDisk(event.payload.action);
+      },
+    );
+    return () => {
+      unlisten.then((fn) => fn());
     };
   }, []);
 
@@ -1060,8 +1129,33 @@ const performRunMacro = useCallback(
                 <CardDescription className="mt-1">
                   Low-level options. Most users won't need to touch this.
                 </CardDescription>
-                <div className="mt-4 rounded-md border border-dashed border-neutral-700 bg-neutral-950/30 px-4 py-6 text-center text-xs text-neutral-500">
-                  No advanced settings yet.
+
+                <div className="mt-4 flex items-center justify-between gap-2 rounded-md border border-white/5 bg-neutral-950/40 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-medium text-neutral-200">MCP server</div>
+                    <div className="mt-0.5 text-[11px] text-neutral-500">
+                      Lets AI tools (Claude, etc.) create and edit macros over
+                      http://127.0.0.1:43126/mcp. {mcpRunning ? 'Running.' : 'Off.'}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={mcpEnabled}
+                    disabled={mcpBusy}
+                    onClick={() => void toggleMcp(!mcpEnabled)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors ${
+                      mcpEnabled
+                        ? 'border-green-500/40 bg-green-500/30'
+                        : 'border-neutral-700 bg-neutral-800'
+                    } ${mcpBusy ? 'opacity-50' : ''}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-neutral-100 transition-transform ${
+                        mcpEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
                 </div>
               </Card>
             )}
