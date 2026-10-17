@@ -494,6 +494,37 @@ fn github_repo_url() -> &'static str {
     "https://github.com/Herra-Atlas/project-m"
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct GithubRelease {
+    pub tag_name: String,
+    pub html_url: String,
+    pub body: Option<String>,
+    pub prerelease: bool,
+    pub draft: bool,
+}
+
+/// Fetches the latest published release from the GitHub API so the
+/// frontend can compare versions. Plain HTTPS — no updater plugin or
+/// signing keys involved.
+#[tauri::command]
+async fn check_github_release() -> Result<GithubRelease, String> {
+    let resp = reqwest::Client::new()
+        .get("https://api.github.com/repos/Herra-Atlas/project-m/releases/latest")
+        .header("User-Agent", "project-m-updater")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .map_err(|e| format!("network: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("github returned {}", resp.status()));
+    }
+    let release: GithubRelease = resp
+        .json()
+    .await
+        .map_err(|e| format!("parse: {e}"))?;
+    Ok(release)
+}
+
 /// On NSIS in-place upgrades, staged resources can land in `<install_root>/_up_/`
 /// and never get moved to the final layout if the app's `macro.exe` was
 /// locked when the installer tried to copy. This command reconciles the
@@ -795,7 +826,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, mcp_get_enabled, mcp_set_enabled, save_macro, delete_macro_file, list_macros, read_macro_file, install_paths, github_repo_url, reconcile_nsis_up_dir, get_mouse_info, check_ahk, start_ipc_listener, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay, ensure_window_on_screen, import_macro_json])
+        .invoke_handler(tauri::generate_handler![run_macro, stop_macro, force_stop_macro, set_force_stop_shortcut, clear_force_stop_shortcut, is_running, get_running_macro_id, save_app_state, load_app_state, save_settings, load_settings, mcp_get_enabled, mcp_set_enabled, save_macro, delete_macro_file, list_macros, read_macro_file, install_paths, github_repo_url, check_github_release, reconcile_nsis_up_dir, get_mouse_info, check_ahk, start_ipc_listener, pick::start_pixel_pick, pick::stop_pixel_pick, show_region_overlay, hide_region_overlay, ensure_window_on_screen, import_macro_json])
         .on_window_event(|window, event| {
             // When the user closes Project M, also close the AHK IPC
             // listener — whether it was spawned by the app or opened

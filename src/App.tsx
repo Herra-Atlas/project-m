@@ -758,44 +758,17 @@ const performRunMacro = useCallback(
         )}
       </nav>
 
-      {(updater.state.kind === 'available' ||
-        updater.state.kind === 'downloading' ||
-        updater.state.kind === 'ready-to-install' ||
-        updater.state.kind === 'installing') && !editingMacro && (
+      {(updater.state.kind === 'available') && !editingMacro && (
         <div
           className={cn(
             'flex items-center gap-3 border-b px-6 py-2 text-xs',
-            updater.state.kind === 'ready-to-install' || updater.state.kind === 'installing'
-              ? 'border-green-500/30 bg-green-500/10 text-green-300'
-              : 'border-blue-500/30 bg-blue-500/10 text-blue-300',
+            'border-blue-500/30 bg-blue-500/10 text-blue-300',
           )}
         >
           <Download size={14} />
-          <span className="flex-1">
-            {updater.state.kind === 'available' &&
-              `Version ${updater.state.update.version} is available.`}
-            {updater.state.kind === 'downloading' &&
-              `Downloading ${updater.state.update.version}… ${Math.round(updater.state.progress * 100)}%`}
-            {updater.state.kind === 'ready-to-install' &&
-              `Version ${updater.state.update.version} ready. Restart to install.`}
-            {updater.state.kind === 'installing' &&
-              `Launching installer for ${updater.state.update.version}… the app will exit.`}
-          </span>
-          {updater.state.kind === 'downloading' && (
-            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full bg-blue-400 transition-[width]"
-                style={{ width: `${Math.round(updater.state.progress * 100)}%` }}
-              />
-            </div>
-          )}
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={updater.state.kind === 'downloading' || updater.state.kind === 'installing'}
-            onClick={() => void updater.install()}
-          >
-            {updater.state.kind === 'ready-to-install' ? 'Restart now' : 'Download & install'}
+          <span className="flex-1">Version {updater.state.version} is available.</span>
+          <Button variant="primary" size="sm" onClick={() => void updater.openReleases()}>
+            Get update
           </Button>
         </div>
       )}
@@ -1186,10 +1159,7 @@ const performRunMacro = useCallback(
                       {updater.state.kind === 'idle' && 'Checking for updates…'}
                       {updater.state.kind === 'checking' && 'Checking for updates…'}
                       {updater.state.kind === 'up-to-date' && `Up to date (checked ${new Date(updater.state.checkedAt).toLocaleTimeString()})`}
-                      {updater.state.kind === 'available' && `Version ${updater.state.update.version} is available`}
-                      {updater.state.kind === 'downloading' && `Downloading ${updater.state.update.version}… ${Math.round(updater.state.progress * 100)}%`}
-                      {updater.state.kind === 'ready-to-install' && `Restart to install ${updater.state.update.version}`}
-                      {updater.state.kind === 'installing' && `Launching installer for ${updater.state.update.version}…`}
+                      {updater.state.kind === 'available' && `Version ${updater.state.version} is available`}
                       {updater.state.kind === 'failed' && `Update check failed: ${updater.state.message}`}
                     </div>
                   </div>
@@ -1197,26 +1167,11 @@ const performRunMacro = useCallback(
                     <Button
                       variant="secondary"
                       size="sm"
-                      disabled={
-                        updater.state.kind === 'checking' ||
-                        updater.state.kind === 'downloading' ||
-                        updater.state.kind === 'installing'
-                      }
+                      disabled={updater.state.kind === 'checking'}
                       onClick={() => void updater.checkNow()}
                     >
                       Check now
                     </Button>
-                    {(updater.state.kind === 'available' ||
-                      updater.state.kind === 'ready-to-install' ||
-                      updater.state.kind === 'failed') && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => void updater.install()}
-                      >
-                        {updater.state.kind === 'ready-to-install' ? 'Restart' : 'Install update'}
-                      </Button>
-                    )}
                     <Button
                       variant="ghost"
                       size="sm"
