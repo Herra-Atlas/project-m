@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Project M",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "identifier": "com.herra-atlas.project-m",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://localhost:43125",
     "frontendDist": "../dist"
   },
   "app": {
