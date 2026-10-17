@@ -67,6 +67,7 @@ impl Input {
         let _ = self.enigo.key_up(k);
     }
 
+    #[allow(dead_code)]
     pub fn get_pixel_color(x: i32, y: i32) -> Result<String, String> {
         let screen = screenshots::Screen::from_point(x, y).map_err(|e| e.to_string())?;
         let info = screen.display_info;
@@ -81,6 +82,7 @@ impl Input {
         capture_region_cached(x, y, w, h)
     }
 
+    #[allow(dead_code)]
     pub fn type_text(&mut self, text: &str) {
         for ch in text.chars() {
             let _ = self.enigo.key_click(Key::Layout(ch));

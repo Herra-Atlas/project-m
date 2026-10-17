@@ -1,6 +1,6 @@
 [package]
 name = "macro"
-version = "0.1.4"
+version = "0.2.1"
 edition = "2021"
 
 [dependencies]
@@ -8,7 +8,6 @@ tauri = { version = "2", features = ["devtools"] }
 tauri-plugin-log = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-updater = "2"
 tauri-plugin-shell = "2"
 log = "0.4"
 enigo = "0.1"

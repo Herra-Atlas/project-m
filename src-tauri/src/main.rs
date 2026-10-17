@@ -257,7 +257,7 @@ fn load_settings(app: AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn mcp_get_enabled(app: AppHandle) -> Result<bool, String> {
+fn mcp_get_enabled(_app: AppHandle) -> Result<bool, String> {
     Ok(mcp_server::is_running())
 }
 
@@ -533,7 +533,6 @@ async fn check_github_release() -> Result<GithubRelease, String> {
 /// Returns the number of files moved.
 #[tauri::command]
 fn reconcile_nsis_up_dir() -> Result<usize, String> {
-    use std::path::PathBuf;
     let mut moved = 0usize;
 
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
@@ -729,7 +728,7 @@ fn import_macro_json(path: String, app: AppHandle) -> Result<String, String> {
         e.to_string()
     })?;
     let macro_path = target.join("macro.json");
-    if let Some(mut obj) = parsed.as_object_mut() {
+    if let Some(obj) = parsed.as_object_mut() {
         obj.insert("id".into(), serde_json::Value::String(target_id.clone()));
     }
     std::fs::write(&macro_path, serde_json::to_string_pretty(&parsed).unwrap_or_default())
@@ -779,7 +778,8 @@ pub fn run() {
         .plugin(tauri_plugin_log::Builder::default().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+            // (updater plugin removed — updates now checked via GitHub API)
+
         .plugin(tauri_plugin_shell::init())
         .manage(AppState {
             engine_handle: Arc::new(Mutex::new(None)),

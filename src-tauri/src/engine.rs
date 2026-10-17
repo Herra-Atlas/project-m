@@ -148,6 +148,7 @@ impl Engine {
     }
 
     /// Read a node-scoped output.
+    #[allow(dead_code)]
     pub fn get_output(&self, node_id: &str, name: &str) -> Option<Value> {
         self.outputs
             .lock()

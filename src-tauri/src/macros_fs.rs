@@ -84,6 +84,7 @@ pub fn write_macro(app: &tauri::AppHandle, id: &str, payload: &str) -> Result<()
 }
 
 /// Append a log line to the per-macro logs file.
+#[allow(dead_code)]
 pub fn append_log(app: &tauri::AppHandle, id: &str, line: &str) -> Result<(), String> {
     migrate_flat_to_folders(app)?;
     let dir = macro_dir(app, id)?;
